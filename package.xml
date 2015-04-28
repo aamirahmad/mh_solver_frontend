@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<package>
+  <name>mh_solver_frontend</name>
+  <version>0.0.0</version>
+  <description>A Moving-horizon nonlinear least squares-based multirobot cooperative perception. Optimization (using the backend g2o) is performed over a dynamically moving window of fixed timesteps. This package is a frontend that creates moving windows of nodes and edges and calls g2o functions to solve them online. The package also has a full offline graph generator and solver also for the sake of completeness and benchmarking</description>
+
+  <maintainer email="aamir.iitkgp@gmail.com">aamir</maintainer>
+
+  <license>GPLv3</license>
+
+
+  <build_depend>cmake_modules</build_depend>
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>rospy</build_depend>
+  <build_depend>cv_bridge</build_depend>
+  <build_depend>read_omni_dataset</build_depend> 
+  <build_depend>message_generation</build_depend>
+  
+  <run_depend>message_runtime</run_depend> 
+  <run_depend>read_omni_dataset</run_depend>       
+  <run_depend>roscpp</run_depend> 
+  <run_depend>cv_bridge</run_depend>
+  <run_depend>rospy</run_depend>
+
+
+  <!-- The export tag contains other, unspecified, tags -->
+  <export>
+    <!-- You can specify that this package is a metapackage here: -->
+    <!-- <metapackage/> -->
+
+    <!-- Other tools can request additional information be placed here -->
+    <cpp cflags="-I/home/aamir/local/include -I/home/aamir/local/src" lflags="/home/aamir/local/lib"/>
+  </export>
+</package>
