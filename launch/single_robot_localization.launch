@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<launch>
+
+ 
+  <arg name="robotID" default="1"/>
+  <arg name="numRobots" default="10" />
+  <arg name="WindowSize" default="20" />
+  <arg name="DecayLambda" default="20" />
+  
+     
+  <node name="mh_solver_frontend_$(arg robotID)" pkg="mh_solver_frontend" type="mh_solver_frontend" args="$(arg WindowSize) $(arg DecayLambda)" output="screen">
+    
+    <param name="MY_ID" value="$(arg robotID)" type="int" />   
+    
+    <param name="NUM_ROBOTS" value="$(arg numRobots)" type="int" />  
+    
+    <param name="MAX_VERTEX_COUNT" value="150000" type="int" /> 
+    
+    <param name="MAX_INDIVIDUAL_STATES" value="50000" type="int" />  
+    
+
+        
+   </node>
+
+</launch> 

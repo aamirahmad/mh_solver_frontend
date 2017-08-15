@@ -450,7 +450,7 @@ void SelfRobot::selfOdometryCallback(const nav_msgs::Odometry::ConstPtr& odometr
   curTime = odometry->header.stamp;
   
   ROS_WARN(" got odometry from robot %d at time %d",RobotNumber, odometry->header.stamp.sec);  
-  //   ROS_WARN(" value of vertextCount_ for robot %d is %d",RobotNumber,vertextCounter_);  
+  ROS_WARN(" value of vertextCount_ for robot %d is %d",RobotNumber,vertextCounter_);  
   //   ROS_WARN(" TotalvertextCount_ now is %d",*totalVertextCounter);  
   
   if((*totalVertextCounter)<MAX_VERTEX_COUNT)
@@ -963,7 +963,7 @@ void SelfRobot::publishSelfState(g2o::SparseOptimizer* graph_ptr)
     
     for(int i=0;i<MAX_ROBOTS;i++)
     {
-      if(OMNI_ACTIVE[i] && ifRobotIsStarted[i])
+      if(ifRobotIsStarted[i])
       {
       
 	int latestOptimizedRobPoseVer = currentPoseVertexIDs[i];
