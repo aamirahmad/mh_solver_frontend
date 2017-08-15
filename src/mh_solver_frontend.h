@@ -133,7 +133,6 @@ class Target
 
 class SelfRobot
 {
-  NodeHandle *nh;
   //One subscriber per sensor in the robot
   Subscriber sOdom_;
   Subscriber sBall_;
@@ -179,27 +178,30 @@ class SelfRobot
 //   bool 
   
   public:
-    SelfRobot(NodeHandle *nh, g2o::SparseOptimizer* graph, int robotNumber, int startCounter, int* totVertCount, int* tgtVertexID, Eigen::Isometry2d _initPose, vector<Target*> _targetsToTrack,vector<int>& _curPosVerID, vector<bool>& _ifRobotIsStarted): vertextCounter_(startCounter), totalVertextCounter(totVertCount), SE2vertexID_prev(0), SE2vertexID(0), initPose(_initPose), targetVertexID(tgtVertexID), targetVertextCounter_(0), targetsToTrack(_targetsToTrack), solverStep(0),currentPoseVertexIDs(_curPosVerID),ifRobotIsStarted(_ifRobotIsStarted)
+    SelfRobot(NodeHandle& nh, g2o::SparseOptimizer* graph, int robotNumber, int startCounter, int* totVertCount, int* tgtVertexID, Eigen::Isometry2d _initPose, vector<Target*> _targetsToTrack,vector<int>& _curPosVerID, vector<bool>& _ifRobotIsStarted): vertextCounter_(startCounter), totalVertextCounter(totVertCount), SE2vertexID_prev(0), SE2vertexID(0), initPose(_initPose), targetVertexID(tgtVertexID), targetVertextCounter_(0), targetsToTrack(_targetsToTrack), solverStep(0),currentPoseVertexIDs(_curPosVerID),ifRobotIsStarted(_ifRobotIsStarted)
     {
+      currentPoseVertexIDs.reserve(NUM_ROBOTS);
+      ifRobotIsStarted.reserve(NUM_ROBOTS);   
+        
       ifRobotIsStarted[robotNumber] = false;
       
-      sOdom_ = nh->subscribe<nav_msgs::Odometry>("/omni"+boost::lexical_cast<string>(robotNumber+1)+"/odometry", 10, boost::bind(&SelfRobot::selfOdometryCallback,this, _1,robotNumber+1,graph));
+      sOdom_ = nh.subscribe<nav_msgs::Odometry>("/omni"+boost::lexical_cast<string>(robotNumber+1)+"/odometry", 10, boost::bind(&SelfRobot::selfOdometryCallback,this, _1,robotNumber+1,graph));
       
-      sBall_ = nh->subscribe<read_omni_dataset::BallData>("/omni"+boost::lexical_cast<string>(robotNumber+1)+"/orangeball3Dposition", 10, boost::bind(&SelfRobot::selfTargetDataCallback,this, _1,robotNumber+1,graph));
+      sBall_ = nh.subscribe<read_omni_dataset::BallData>("/omni"+boost::lexical_cast<string>(robotNumber+1)+"/orangeball3Dposition", 10, boost::bind(&SelfRobot::selfTargetDataCallback,this, _1,robotNumber+1,graph));
       
-      sLandmark_ = nh->subscribe<read_omni_dataset::LRMLandmarksData>("/omni"+boost::lexical_cast<string>(robotNumber+1)+"/landmarkspositions", 10, boost::bind(&SelfRobot::selfLandmarkDataCallback,this, _1,robotNumber+1,graph));
+      sLandmark_ = nh.subscribe<read_omni_dataset::LRMLandmarksData>("/omni"+boost::lexical_cast<string>(robotNumber+1)+"/landmarkspositions", 10, boost::bind(&SelfRobot::selfLandmarkDataCallback,this, _1,robotNumber+1,graph));
       
       ROS_INFO(" constructing robot object and called sensor subscribers for robot %d",robotNumber+1);
       
-      selfState_publisher = nh->advertise<mh_solver_frontend::RobotState>("mhls_omni_poses", 1000); //mhls is moving horizon least squares.
+      selfState_publisher = nh.advertise<mh_solver_frontend::RobotState>("mhls_omni_poses", 1000); //mhls is moving horizon least squares.
       
-      targetStatePublisher = nh->advertise<read_omni_dataset::BallData>("orangeBallEstimatedState", 1000);
+      targetStatePublisher = nh.advertise<read_omni_dataset::BallData>("orangeBallEstimatedState", 1000);
       
-      virtualGTPublisher = nh->advertise<read_omni_dataset::LRMGTData>("gtData_4robotExp_SyncedWithg2oEstimate", 1000);      
+      virtualGTPublisher = nh.advertise<read_omni_dataset::LRMGTData>("gtData_4robotExp_SyncedWithg2oEstimate", 1000);      
    
       //The Graph Generator ans solver should also subscribe to the GT data and publish it... This is important for time synchronization
-      GT_sub_ = nh->subscribe<read_omni_dataset::LRMGTData>("gtData_4robotExp", 10, boost::bind(&SelfRobot::gtDataCallback,this, _1));      
-      //GT_sub_ = nh->subscribe("gtData_4robotExp", 1000, gtDataCallback); 
+      GT_sub_ = nh.subscribe<read_omni_dataset::LRMGTData>("gtData_4robotExp", 10, boost::bind(&SelfRobot::gtDataCallback,this, _1));      
+      //GT_sub_ = nh.subscribe("gtData_4robotExp", 1000, gtDataCallback); 
       
       mhls_g2o = fopen("mhls_g2o.g2o","w");
       
@@ -245,7 +247,6 @@ class SelfRobot
 
 class TeammateRobot
 {
-  NodeHandle *nh;
   //One subscriber per sensor in the robot
   Subscriber sOdom_;
   Subscriber sBall_;
@@ -268,19 +269,22 @@ class TeammateRobot
   vector<int> currentPoseVertexIDs;
   
   public:
-    TeammateRobot(NodeHandle *nh, g2o::SparseOptimizer* graph, int robotNumber, int startCounter, int* totVertCount, int* tgtVertexID, Eigen::Isometry2d _initPose, vector<Target*> _targetsToTrack, vector<int>&  _curPosVerID, vector<bool>& _ifRobotIsStarted): vertextCounter_(startCounter), totalVertextCounter(totVertCount), SE2vertexID_prev(0), SE2vertexID(0), initPose(_initPose), targetVertexID(tgtVertexID), targetsToTrack(_targetsToTrack),currentPoseVertexIDs(_curPosVerID),ifRobotIsStarted(_ifRobotIsStarted)
+    TeammateRobot(NodeHandle& nh, g2o::SparseOptimizer* graph, int robotNumber, int startCounter, int* totVertCount, int* tgtVertexID, Eigen::Isometry2d _initPose, vector<Target*> _targetsToTrack, vector<int>&  _curPosVerID, vector<bool>& _ifRobotIsStarted): vertextCounter_(startCounter), totalVertextCounter(totVertCount), SE2vertexID_prev(0), SE2vertexID(0), initPose(_initPose), targetVertexID(tgtVertexID), targetsToTrack(_targetsToTrack),currentPoseVertexIDs(_curPosVerID),ifRobotIsStarted(_ifRobotIsStarted)
     {
+      currentPoseVertexIDs.reserve(NUM_ROBOTS);
+      ifRobotIsStarted.reserve(NUM_ROBOTS);   
+      
       ifRobotIsStarted[robotNumber] = false;
        
-      sOdom_ = nh->subscribe<nav_msgs::Odometry>("/omni"+boost::lexical_cast<string>(robotNumber+1)+"/odometry", 10, boost::bind(&TeammateRobot::teammateOdometryCallback,this, _1,robotNumber+1,graph));
+      sOdom_ = nh.subscribe<nav_msgs::Odometry>("/omni"+boost::lexical_cast<string>(robotNumber+1)+"/odometry", 10, boost::bind(&TeammateRobot::teammateOdometryCallback,this, _1,robotNumber+1,graph));
       
-      sBall_ = nh->subscribe<read_omni_dataset::BallData>("/omni"+boost::lexical_cast<string>(robotNumber+1)+"/orangeball3Dposition", 10, boost::bind(&TeammateRobot::teammateTargetDataCallback,this, _1,robotNumber+1,graph));
+      sBall_ = nh.subscribe<read_omni_dataset::BallData>("/omni"+boost::lexical_cast<string>(robotNumber+1)+"/orangeball3Dposition", 10, boost::bind(&TeammateRobot::teammateTargetDataCallback,this, _1,robotNumber+1,graph));
       
-      sLandmark_ = nh->subscribe<read_omni_dataset::LRMLandmarksData>("/omni"+boost::lexical_cast<string>(robotNumber+1)+"/landmarkspositions", 10, boost::bind(&TeammateRobot::teammateLandmarkDataCallback,this, _1,robotNumber+1,graph));
+      sLandmark_ = nh.subscribe<read_omni_dataset::LRMLandmarksData>("/omni"+boost::lexical_cast<string>(robotNumber+1)+"/landmarkspositions", 10, boost::bind(&TeammateRobot::teammateLandmarkDataCallback,this, _1,robotNumber+1,graph));
       
       ROS_INFO(" constructing robot object and called sensor subscribers for robot %d",robotNumber+1);
       
-      //robotState_publisher = nh->advertise<mh_solver_frontend::RobotState>("/omni"+boost::lexical_cast<string>(robotNumber+1)+"State", 1000);
+      //robotState_publisher = nh.advertise<mh_solver_frontend::RobotState>("/omni"+boost::lexical_cast<string>(robotNumber+1)+"State", 1000);
       
     }
 
@@ -321,14 +325,17 @@ class GenerateGraph
   
   
   public:
-    GenerateGraph(g2o::SparseOptimizer* _graph): graph_(_graph), totalVertextCounter_(0), loop_rate_(30),targetVertexID_(0)
+    GenerateGraph(NodeHandle &_nh, g2o::SparseOptimizer* _graph): nh_(_nh), graph_(_graph), totalVertextCounter_(0), loop_rate_(30),targetVertexID_(0)
     { 
         
         
       nh_.getParam("MY_ID", MY_ID);    
       nh_.getParam("NUM_ROBOTS", NUM_ROBOTS);      
       nh_.getParam("MAX_VERTEX_COUNT", MAX_VERTEX_COUNT);    
-      nh_.getParam("MAX_INDIVIDUAL_STATES", MAX_INDIVIDUAL_STATES);        
+      nh_.getParam("MAX_INDIVIDUAL_STATES", MAX_INDIVIDUAL_STATES);    
+      
+      printf("MY_ID =%d\n",MY_ID);
+      printf("NUM_ROBOTS =%d\n",NUM_ROBOTS);
         
       Eigen::Isometry2d initialRobotPose;
       Eigen::Vector3d initialTargetPosition;
@@ -352,11 +359,11 @@ class GenerateGraph
 	
 	if(i+1 == MY_ID)
 	{
-	  robot_ = new SelfRobot(&nh_, graph_,i,0,&totalVertextCounter_,&targetVertexID_,initialRobotPose,targets_,currentPoseVertexID,robotStarted);
+	  robot_ = new SelfRobot(nh_, graph_,i,0,&totalVertextCounter_,&targetVertexID_,initialRobotPose,targets_,currentPoseVertexID,robotStarted);
 	}
 	else
 	{	  
-	  TeammateRobot *tempRobot = new TeammateRobot(&nh_, graph_,i,0,&totalVertextCounter_,&targetVertexID_,initialRobotPose, targets_,currentPoseVertexID,robotStarted);
+	  TeammateRobot *tempRobot = new TeammateRobot(nh_, graph_,i,0,&totalVertextCounter_,&targetVertexID_,initialRobotPose, targets_,currentPoseVertexID,robotStarted);
 	  teammateRobots_.push_back(tempRobot);
 	}	
       }

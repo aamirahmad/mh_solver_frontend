@@ -455,7 +455,7 @@ void SelfRobot::selfOdometryCallback(const nav_msgs::Odometry::ConstPtr& odometr
   
   if((*totalVertextCounter)<MAX_VERTEX_COUNT)
   {
-
+    
     double odomVector[3] = {odometry->pose.pose.position.x, odometry->pose.pose.position.y, tf::getYaw(odometry->pose.pose.orientation)};
     
     Eigen::Isometry2d odom; 
@@ -480,6 +480,7 @@ void SelfRobot::selfOdometryCallback(const nav_msgs::Odometry::ConstPtr& odometr
       SE2vertexID = (RobotNumber)*MAX_INDIVIDUAL_STATES;
     else
       SE2vertexID++;
+    
     VertexSE2 * v = new VertexSE2();
     v->setId(SE2vertexID);  
     v->setEstimate(curPose);
@@ -491,7 +492,8 @@ void SelfRobot::selfOdometryCallback(const nav_msgs::Odometry::ConstPtr& odometr
      //v->setFixed(true);
     graph_ptr->addVertex(v);
     currentPoseVertexIDs[RobotNumber-1] = SE2vertexID;
-    //cout<<"currentPoseVertexIDs[RobotNumber] = "<<currentPoseVertexIDs[RobotNumber-1]<<endl;
+    ROS_WARN("SE2vertexID = %d",SE2vertexID);
+    cout<<"currentPoseVertexIDs[RobotNumber] = "<<currentPoseVertexIDs[RobotNumber-1]<<endl;
     
     //start adding self-robot pose-pose edges if seq is greater than 0
     if(vertextCounter_>0) 
@@ -1394,6 +1396,7 @@ void TeammateRobot::publishState(g2o::SparseOptimizer* graph_ptr)
 int main (int argc, char* argv[])
 {
   ros::init(argc, argv, "mh_solver_frontend");
+  ros::NodeHandle nh("~");
   
   if (argc != 3)
   {
@@ -1418,7 +1421,7 @@ int main (int argc, char* argv[])
   g2o::SparseOptimizer graph;
 
   addFixedLandmarkNodes(&graph);
-  GenerateGraph node(&graph);//argument corresponds to the number of robots in the team
+  GenerateGraph node(nh, &graph);//argument corresponds to the number of robots in the team
   
 
   spin();
