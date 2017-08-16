@@ -444,7 +444,7 @@ void Target::addNewTGTVertexAndEdgesAround(double tgtX, double tgtY, double tgtZ
 void SelfRobot::selfOdometryCallback(const nav_msgs::Odometry::ConstPtr& odometry, int RobotNumber, g2o::SparseOptimizer* graph_ptr)
 {
   //The robot has started
-  ifRobotIsStarted[RobotNumber-1]=true;
+  (*ifRobotIsStarted)[RobotNumber-1]=true;
   uint seq = odometry->header.seq;
   prevTime = curTime;
   curTime = odometry->header.stamp;
@@ -491,9 +491,9 @@ void SelfRobot::selfOdometryCallback(const nav_msgs::Odometry::ConstPtr& odometr
     //if(vertextCounter_ == 0)
      //v->setFixed(true);
     graph_ptr->addVertex(v);
-    currentPoseVertexIDs[RobotNumber-1] = SE2vertexID;
+    (*currentPoseVertexIDs)[RobotNumber-1] = SE2vertexID;
     ROS_WARN("SE2vertexID = %d",SE2vertexID);
-    cout<<"currentPoseVertexIDs[RobotNumber] = "<<currentPoseVertexIDs[RobotNumber-1]<<endl;
+    cout<<"(*currentPoseVertexIDs)[RobotNumber] = "<<(*currentPoseVertexIDs)[RobotNumber-1]<<endl;
     
     //start adding self-robot pose-pose edges if seq is greater than 0
     if(vertextCounter_>0) 
@@ -527,7 +527,7 @@ void SelfRobot::selfOdometryCallback(const nav_msgs::Odometry::ConstPtr& odometr
       
       // add information matrix
       Eigen::Matrix<double, 3, 3> Lambda;      
-      Lambda<<50000, 0.0, 0.0, 0.0,50000, 0.0,0.0,0.0, 5000000;      
+      Lambda<<500, 0.0, 0.0, 0.0,500, 0.0,0.0,0.0, 5000;      
       
       // set the observation and imformation matrix
       const SE2 a(odom);
@@ -764,19 +764,19 @@ void SelfRobot::selfTargetDataCallback(const read_omni_dataset::BallData::ConstP
 
 void SelfRobot::selfLandmarkDataCallback(const read_omni_dataset::LRMLandmarksData::ConstPtr& landmarkData, int RobotNumber, g2o::SparseOptimizer* graph_ptr)
 {
-  //ROS_INFO(" got landmark from robot %d with current vertex id as %d",RobotNumber,SE2vertexID);  
+  ROS_INFO(" got landmark from robot %d with current vertex id as %d",RobotNumber,SE2vertexID);  
   
   uint seq = landmarkData->header.seq;
   
   int curRobotPoseVertexID = SE2vertexID;
 
   
-  for(int i=4;i<10; i++)
+  for(int i=0;i<10; i++)
   {
     if(landmarkData->found[i])
     {
      
-      //cout<<"landmark "<<i<<" is at X_rob = "<<landmarkData->x[i]<< " and Y_rob = "<<landmarkData->y[i]<<endl;
+      cout<<"landmark "<<i<<" is at X_rob = "<<landmarkData->x[i]<< " and Y_rob = "<<landmarkData->y[i]<<endl;
       Eigen::Vector2d tempLandmarkObsVec = Eigen::Vector2d(landmarkData->x[i],landmarkData->y[i]);
       // add information matrix
       Eigen::Matrix<double, 2, 2> tempInformationOnLandmark;
@@ -799,8 +799,10 @@ void SelfRobot::selfLandmarkDataCallback(const read_omni_dataset::LRMLandmarksDa
 
       if(covXX<0||covYY<0)
 	ROS_WARN(" covariance negative!!! ");
-      tempInformationOnLandmark<<1/covXX,0,
-				 0,1/covYY;
+      //tempInformationOnLandmark<<1/covXX,0,
+      //				 0,1/covYY;
+      tempInformationOnLandmark<<100,0,
+				 0,100;                                 
 				 
 	//cout<<" information gained by landmark number "<<i<<" = "<<endl<<
 	//1/covXX<<" "<<0<<endl<<
@@ -857,7 +859,7 @@ void SelfRobot::solveSlidingWindowGraph(g2o::SparseOptimizer* graph_ptr)
       /// start Optimizatin here
      
       char filename[100];
-      sprintf(filename, "original_graph_%d.g2o", solverStep);
+      sprintf(filename, "original_graph_only.g2o");
 #ifdef  SAVE_GRAPHFILES
       graph_ptr->save(filename);
 #endif
@@ -899,7 +901,7 @@ void SelfRobot::solveSlidingWindowGraph(g2o::SparseOptimizer* graph_ptr)
 	std::cout << "Optimization complete with final ChiSquare value = "<<finalChi<<" and iterations = "<< result<<std::endl; 
       }
       
-      sprintf(filename, "solved_graph_%d.g2o", solverStep);
+      sprintf(filename, "solved_graph_last.g2o");
 #ifdef  SAVE_GRAPHFILES
       graph_ptr->save(filename);
 #endif 
@@ -965,10 +967,10 @@ void SelfRobot::publishSelfState(g2o::SparseOptimizer* graph_ptr)
     
     for(int i=0;i<MAX_ROBOTS;i++)
     {
-      if(ifRobotIsStarted[i])
+      if((*ifRobotIsStarted)[i])
       {
       
-	int latestOptimizedRobPoseVer = currentPoseVertexIDs[i];
+	int latestOptimizedRobPoseVer = (*currentPoseVertexIDs)[i];
 	bool poseExists = false;
 	//cout<<"latestOptimizedRobPoseVer = "<<latestOptimizedRobPoseVer<<endl;
 	//This loop is to check whether the latest pose exists or not
@@ -1029,7 +1031,7 @@ void TeammateRobot::teammateOdometryCallback(const nav_msgs::Odometry::ConstPtr&
     //return;
   
   //The robot has started
-  ifRobotIsStarted[RobotNumber-1]=true;
+  (*ifRobotIsStarted)[RobotNumber-1]=true;
   uint seq = odometry->header.seq;
   curTime = odometry->header.stamp;
   
@@ -1073,8 +1075,8 @@ void TeammateRobot::teammateOdometryCallback(const nav_msgs::Odometry::ConstPtr&
     //if(vertextCounter_ == 0)
      //v->setFixed(true);
     graph_ptr->addVertex(v);
-    currentPoseVertexIDs[RobotNumber-1] = SE2vertexID;
-    //cout<<"currentPoseVertexIDs[RobotNumber] = "<<currentPoseVertexIDs[RobotNumber-1]<<endl;
+    (*currentPoseVertexIDs)[RobotNumber-1] = SE2vertexID;
+    //cout<<"(*currentPoseVertexIDs)[RobotNumber] = "<<(*currentPoseVertexIDs)[RobotNumber-1]<<endl;
     
       
     if(vertextCounter_>0) //start adding edges if seq is greater than 0

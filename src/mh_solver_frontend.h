@@ -46,8 +46,8 @@
 #include "std_msgs/String.h"
 #include <sys/time.h>
 
-//#define SAVE_GRAPHFILES
-#undef SAVE_GRAPHFILES 
+#define SAVE_GRAPHFILES
+//#undef SAVE_GRAPHFILES 
 
 // #define M_PI        3.141592653589793238462643383280    /* pi */
 
@@ -152,7 +152,7 @@ class SelfRobot
   int SE2vertexID; // current vertex id holder for the robot state
   //prev_id for target is only for the self robot
   int targetVertexID_prev;
-  vector<bool> ifRobotIsStarted;
+  vector<bool> *ifRobotIsStarted;
   
   ///@TODO convert this to an array of pointers perhaps for multi-target case
   int *targetVertexID;  //current vertex id holder for the ball's state. it is passed as a pointer because the value is shared by all robots as it is for the same target
@@ -170,7 +170,7 @@ class SelfRobot
   //double U_prior;
   //double U[MAX_INDIVIDUAL_STATES];
   double decayCoeff;
-  vector<int> currentPoseVertexIDs;
+  vector<int> *currentPoseVertexIDs;
   
   FILE *mhls_g2o;
   
@@ -178,12 +178,10 @@ class SelfRobot
 //   bool 
   
   public:
-    SelfRobot(NodeHandle& nh, g2o::SparseOptimizer* graph, int robotNumber, int startCounter, int* totVertCount, int* tgtVertexID, Eigen::Isometry2d _initPose, vector<Target*> _targetsToTrack,vector<int>& _curPosVerID, vector<bool>& _ifRobotIsStarted): vertextCounter_(startCounter), totalVertextCounter(totVertCount), SE2vertexID_prev(0), SE2vertexID(0), initPose(_initPose), targetVertexID(tgtVertexID), targetVertextCounter_(0), targetsToTrack(_targetsToTrack), solverStep(0),currentPoseVertexIDs(_curPosVerID),ifRobotIsStarted(_ifRobotIsStarted)
+    SelfRobot(NodeHandle& nh, g2o::SparseOptimizer* graph, int robotNumber, int startCounter, int* totVertCount, int* tgtVertexID, Eigen::Isometry2d _initPose, vector<Target*> _targetsToTrack,vector<int>* _curPosVerID, vector<bool> * _ifRobotIsStarted): vertextCounter_(startCounter), totalVertextCounter(totVertCount), SE2vertexID_prev(0), SE2vertexID(0), initPose(_initPose), targetVertexID(tgtVertexID), targetVertextCounter_(0), targetsToTrack(_targetsToTrack), solverStep(0),currentPoseVertexIDs(_curPosVerID),ifRobotIsStarted(_ifRobotIsStarted)
     {
-      currentPoseVertexIDs.reserve(NUM_ROBOTS);
-      ifRobotIsStarted.reserve(NUM_ROBOTS);   
         
-      ifRobotIsStarted[robotNumber] = false;
+      (*ifRobotIsStarted)[robotNumber] = false;
       
       sOdom_ = nh.subscribe<nav_msgs::Odometry>("/omni"+boost::lexical_cast<string>(robotNumber+1)+"/odometry", 10, boost::bind(&SelfRobot::selfOdometryCallback,this, _1,robotNumber+1,graph));
       
@@ -261,20 +259,18 @@ class TeammateRobot
   int *totalVertextCounter;
   mh_solver_frontend::RobotState msg;
   //Publisher robotState_publisher; // has no target state publisher... only selfRobot publishes target state
-  vector<bool> ifRobotIsStarted;
+  vector<bool> *ifRobotIsStarted;
   
   vector<Target*> targetsToTrack;
   
   double decayCoeff;
-  vector<int> currentPoseVertexIDs;
+  vector<int> *currentPoseVertexIDs;
   
   public:
-    TeammateRobot(NodeHandle& nh, g2o::SparseOptimizer* graph, int robotNumber, int startCounter, int* totVertCount, int* tgtVertexID, Eigen::Isometry2d _initPose, vector<Target*> _targetsToTrack, vector<int>&  _curPosVerID, vector<bool>& _ifRobotIsStarted): vertextCounter_(startCounter), totalVertextCounter(totVertCount), SE2vertexID_prev(0), SE2vertexID(0), initPose(_initPose), targetVertexID(tgtVertexID), targetsToTrack(_targetsToTrack),currentPoseVertexIDs(_curPosVerID),ifRobotIsStarted(_ifRobotIsStarted)
+    TeammateRobot(NodeHandle& nh, g2o::SparseOptimizer* graph, int robotNumber, int startCounter, int* totVertCount, int* tgtVertexID, Eigen::Isometry2d _initPose, vector<Target*> _targetsToTrack, vector<int> *  _curPosVerID, vector<bool> * _ifRobotIsStarted): vertextCounter_(startCounter), totalVertextCounter(totVertCount), SE2vertexID_prev(0), SE2vertexID(0), initPose(_initPose), targetVertexID(tgtVertexID), targetsToTrack(_targetsToTrack),currentPoseVertexIDs(_curPosVerID),ifRobotIsStarted(_ifRobotIsStarted)
     {
-      currentPoseVertexIDs.reserve(NUM_ROBOTS);
-      ifRobotIsStarted.reserve(NUM_ROBOTS);   
       
-      ifRobotIsStarted[robotNumber] = false;
+      (*ifRobotIsStarted)[robotNumber] = false;
        
       sOdom_ = nh.subscribe<nav_msgs::Odometry>("/omni"+boost::lexical_cast<string>(robotNumber+1)+"/odometry", 10, boost::bind(&TeammateRobot::teammateOdometryCallback,this, _1,robotNumber+1,graph));
       
@@ -359,11 +355,11 @@ class GenerateGraph
 	
 	if(i+1 == MY_ID)
 	{
-	  robot_ = new SelfRobot(nh_, graph_,i,0,&totalVertextCounter_,&targetVertexID_,initialRobotPose,targets_,currentPoseVertexID,robotStarted);
+	  robot_ = new SelfRobot(nh_, graph_,i,0,&totalVertextCounter_,&targetVertexID_,initialRobotPose,targets_,&currentPoseVertexID,&robotStarted);
 	}
 	else
 	{	  
-	  TeammateRobot *tempRobot = new TeammateRobot(nh_, graph_,i,0,&totalVertextCounter_,&targetVertexID_,initialRobotPose, targets_,currentPoseVertexID,robotStarted);
+	  TeammateRobot *tempRobot = new TeammateRobot(nh_, graph_,i,0,&totalVertextCounter_,&targetVertexID_,initialRobotPose, targets_,&currentPoseVertexID,&robotStarted);
 	  teammateRobots_.push_back(tempRobot);
 	}	
       }
