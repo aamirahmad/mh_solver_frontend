@@ -122,3 +122,5 @@ target_link_libraries(mh_solver_frontend ${G2O_LIBS} ${catkin_LIBRARIES} ${rosba
 add_executable(single_robot_localization src/single_robot_localization.cpp)
 target_link_libraries(single_robot_localization ${G2O_LIBS} ${catkin_LIBRARIES} ${rosbag_LIBRARIES})
 
+add_executable(coop_loc_track src/coop_loc_track.cpp)
+target_link_libraries(coop_loc_track ${G2O_LIBS} ${catkin_LIBRARIES} ${rosbag_LIBRARIES})

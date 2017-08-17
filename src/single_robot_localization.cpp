@@ -541,11 +541,11 @@ void SelfRobot::publishSelfState(g2o::SparseOptimizer* graph_ptr)
 	{
 	  VertexSE2* mostRecetPoseVertex = dynamic_cast<VertexSE2*>(graph_ptr->vertices()[latestOptimizedRobPoseVer]);
 	  mostRecetPoseVertex->isOptimizedAtLeastOnce = true;            
-          //fill in the generic message for estimated robot pose
           
+          //fill in the generic message for estimated robot pose
           estimatedRobPose.pose.pose.position.x = mostRecetPoseVertex->estimate().translation().x();
 	  estimatedRobPose.pose.pose.position.y = mostRecetPoseVertex->estimate().translation().y();
-	  estimatedRobPose.pose.pose.position.z = ROB_HT; //fixed height aboveground
+	  estimatedRobPose.pose.pose.position.z = 0.81; //fixed height aboveground
 	
 	  estimatedRobPose.pose.pose.orientation.x = 0;
 	  estimatedRobPose.pose.pose.orientation.y = 0;
