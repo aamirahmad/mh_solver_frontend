@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs     
   nav_msgs
   read_omni_dataset
+  tf
 )
 
 ## Generate messages in the 'msg' folder

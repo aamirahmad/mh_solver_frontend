@@ -4,7 +4,10 @@
 
 
 #include <nav_msgs/Odometry.h>
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
+#include <geometry_msgs/PoseStamped.h>
 #include <tf/transform_broadcaster.h>
+#include <tf/transform_listener.h>
 #include <read_omni_dataset/BallData.h>
 #include <read_omni_dataset/LRMLandmarksData.h>
 #include <read_omni_dataset/LRMGTData.h>
@@ -106,16 +109,17 @@ using namespace std;
 class SelfRobot
 {
   //One subscriber per sensor in the robot
+    
+  geometry_msgs::PoseWithCovarianceStamped estimatedRobPose;  
+  geometry_msgs::PoseStamped gtRobPose,gtRobPoseWframe;  
   Subscriber sOdom_;
   Subscriber sLandmark_;
+  Subscriber gtRob_sub_;
   
   float computationTime[20000];
 
   int windowSolverInvokeCount;
-  
-  
-  Subscriber GT_sub_;
-  read_omni_dataset::LRMGTData receivedGTdata;  
+
   
   Eigen::Isometry2d initPose; // x y theta;
   Eigen::Isometry2d prevPose;
@@ -130,7 +134,7 @@ class SelfRobot
   int *totalVertextCounter;
   int solverStep;
   mh_solver_frontend::RobotState msg;
-  Publisher selfState_publisher, virtualGTPublisher; // virtualGTPublisher because gt publisher is actually the rosbag but we need to subscribe to it and publish it synchronously with the estimated rbot state output.
+  Publisher selfState_publisher_generic, virtualGTPublisher; // virtualGTPublisher because gt publisher is actually the rosbag but we need to subscribe to it and publish it synchronously with the estimated rbot state output.
   
   //New Variables for scaled arrival cost function in MHE (refer Rao 2013 for theoretical details)
   //double U_prior;
@@ -139,7 +143,6 @@ class SelfRobot
   vector<int> *currentPoseVertexIDs;
   
   FILE *mhls_g2o;
-  
 
 //   bool 
   
@@ -153,16 +156,15 @@ class SelfRobot
       
       sLandmark_ = nh.subscribe<read_omni_dataset::LRMLandmarksData>("/omni"+boost::lexical_cast<string>(robotNumber+1)+"/landmarkspositions", 10, boost::bind(&SelfRobot::selfLandmarkDataCallback,this, _1,robotNumber+1,graph));
       
+      
+      gtRob_sub_ =  nh.subscribe<geometry_msgs::PoseStamped>("/omni"+boost::lexical_cast<string>(robotNumber+1)+"/simPose", 10, boost::bind(&SelfRobot::selfGTDataCallback,this, _1,robotNumber+1,graph));
+      
       ROS_INFO(" constructing robot object and called sensor subscribers for robot %d",robotNumber+1);
       
-      selfState_publisher = nh.advertise<mh_solver_frontend::RobotState>("mhls_omni_poses", 1000); //mhls is moving horizon least squares.
       
-      
-      virtualGTPublisher = nh.advertise<read_omni_dataset::LRMGTData>("gtData_4robotExp_SyncedWithg2oEstimate", 1000);      
+      selfState_publisher_generic = nh.advertise<geometry_msgs::PoseWithCovarianceStamped>("estimatedRobotPose", 1000); //mhls is
+    
    
-      //The Graph Generator ans solver should also subscribe to the GT data and publish it... This is important for time synchronization
-      GT_sub_ = nh.subscribe<read_omni_dataset::LRMGTData>("gtData_4robotExp", 10, boost::bind(&SelfRobot::gtDataCallback,this, _1));      
-      //GT_sub_ = nh.subscribe("gtData_4robotExp", 1000, gtDataCallback); 
       
       mhls_g2o = fopen("mhls_g2o.g2o","w");
       
@@ -187,8 +189,8 @@ class SelfRobot
     void selfOdometryCallback(const nav_msgs::Odometry::ConstPtr&, int, g2o::SparseOptimizer*);
     
     void selfLandmarkDataCallback(const read_omni_dataset::LRMLandmarksData::ConstPtr&, int, g2o::SparseOptimizer*);
-  
-    void gtDataCallback(const read_omni_dataset::LRMGTData::ConstPtr&);
+      
+    void selfGTDataCallback(const geometry_msgs::PoseStamped::ConstPtr&, int, g2o::SparseOptimizer*);
 
     /// Solve the sliding widnow graph
     void solveSlidingWindowGraph(g2o::SparseOptimizer*);

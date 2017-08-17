@@ -8,7 +8,7 @@
   <arg name="DecayLambda" default="20" />
   
      
-  <node name="single_robot_localization_$(arg robotID)" pkg="mh_solver_frontend" type="single_robot_localization" args="$(arg WindowSize) $(arg DecayLambda)" output="screen" launch-prefix="gdb -ex run --args">
+  <node name="single_robot_localization_$(arg robotID)" pkg="mh_solver_frontend" type="single_robot_localization" args="$(arg WindowSize) $(arg DecayLambda)" output="screen">
     
     <param name="MY_ID" value="$(arg robotID)" type="int" />   
     

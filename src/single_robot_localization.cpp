@@ -49,8 +49,8 @@ void SelfRobot::selfOdometryCallback(const nav_msgs::Odometry::ConstPtr& odometr
   prevTime = curTime;
   curTime = odometry->header.stamp;
   
-  ROS_WARN(" got odometry from robot %d at time %d",RobotNumber, odometry->header.stamp.sec);  
-  ROS_WARN(" value of vertextCount_ for robot %d is %d",RobotNumber,vertextCounter_);  
+  //ROS_WARN(" got odometry from robot %d at time %d",RobotNumber, odometry->header.stamp.sec);  
+  //ROS_WARN(" value of vertextCount_ for robot %d is %d",RobotNumber,vertextCounter_);  
   //   ROS_WARN(" TotalvertextCount_ now is %d",*totalVertextCounter);  
   
   if((*totalVertextCounter)<MAX_VERTEX_COUNT)
@@ -92,8 +92,8 @@ void SelfRobot::selfOdometryCallback(const nav_msgs::Odometry::ConstPtr& odometr
      //v->setFixed(true);
     graph_ptr->addVertex(v);
     (*currentPoseVertexIDs)[RobotNumber-1] = SE2vertexID;
-    ROS_WARN("SE2vertexID = %d",SE2vertexID);
-    cout<<"(*currentPoseVertexIDs)[RobotNumber] = "<<(*currentPoseVertexIDs)[RobotNumber-1]<<endl;
+    //ROS_WARN("SE2vertexID = %d",SE2vertexID);
+    //cout<<"(*currentPoseVertexIDs)[RobotNumber] = "<<(*currentPoseVertexIDs)[RobotNumber-1]<<endl;
     
     //start adding self-robot pose-pose edges if seq is greater than 0
     if(vertextCounter_>0) 
@@ -220,8 +220,8 @@ void SelfRobot::selfOdometryCallback(const nav_msgs::Odometry::ConstPtr& odometr
       }
       
       
-      cout<<"avgComputationTime = "<<avgComputationTime<<endl;
-      cout<<"windowSolverInvokeCount = "<<windowSolverInvokeCount<<endl;
+      //cout<<"avgComputationTime = "<<avgComputationTime<<endl;
+      //cout<<"windowSolverInvokeCount = "<<windowSolverInvokeCount<<endl;
       
       //cout<<"I am here"<<endl;
       Eigen::Isometry2d priorPose;
@@ -335,7 +335,10 @@ void SelfRobot::selfOdometryCallback(const nav_msgs::Odometry::ConstPtr& odometr
 
 void SelfRobot::selfLandmarkDataCallback(const read_omni_dataset::LRMLandmarksData::ConstPtr& landmarkData, int RobotNumber, g2o::SparseOptimizer* graph_ptr)
 {
-  ROS_INFO(" got landmark from robot %d with current vertex id as %d",RobotNumber,SE2vertexID);  
+  if(!(*ifRobotIsStarted)[RobotNumber-1])
+      return;
+  
+  //ROS_INFO(" got landmark from robot %d with current vertex id as %d",RobotNumber,SE2vertexID);  
   
   uint seq = landmarkData->header.seq;
   
@@ -347,7 +350,7 @@ void SelfRobot::selfLandmarkDataCallback(const read_omni_dataset::LRMLandmarksDa
     if(landmarkData->found[i])
     {
      
-      cout<<"landmark "<<i<<" is at X_rob = "<<landmarkData->x[i]<< " and Y_rob = "<<landmarkData->y[i]<<endl;
+      //cout<<"landmark "<<i<<" is at X_rob = "<<landmarkData->x[i]<< " and Y_rob = "<<landmarkData->y[i]<<endl;
       Eigen::Vector2d tempLandmarkObsVec = Eigen::Vector2d(landmarkData->x[i],landmarkData->y[i]);
       // add information matrix
       Eigen::Matrix<double, 2, 2> tempInformationOnLandmark;
@@ -370,10 +373,10 @@ void SelfRobot::selfLandmarkDataCallback(const read_omni_dataset::LRMLandmarksDa
 
       if(covXX<0||covYY<0)
 	ROS_WARN(" covariance negative!!! ");
-      //tempInformationOnLandmark<<1/covXX,0,
-      //				 0,1/covYY;
-      tempInformationOnLandmark<<1000,0,
-				 0,1000;                                 
+//       tempInformationOnLandmark<<1/covXX,0,
+//       				 0,1/covYY;
+           tempInformationOnLandmark<<10,0,
+                                        0,10;                                 
 				 
 	//cout<<" information gained by landmark number "<<i<<" = "<<endl<<
 	//1/covXX<<" "<<0<<endl<<
@@ -419,9 +422,10 @@ void SelfRobot::selfLandmarkDataCallback(const read_omni_dataset::LRMLandmarksDa
  }
 
 
-void SelfRobot::gtDataCallback(const read_omni_dataset::LRMGTData::ConstPtr& gtMsgReceived)
+void SelfRobot::selfGTDataCallback(const geometry_msgs::PoseStamped::ConstPtr& gtMsgReceived,int RobotNumber, g2o::SparseOptimizer* graph_ptr)
 {
-  receivedGTdata = *gtMsgReceived;
+  // This can be used for comparison w.r.t. ground truth data.  
+  gtRobPose = *gtMsgReceived;
 }
     
 
@@ -510,7 +514,8 @@ void SelfRobot::publishSelfState(g2o::SparseOptimizer* graph_ptr)
     //using the first robot for the globaltime stamp of this message
     
     msg.header.stamp = curTime; //time of the self-robot must be in the full state
-    receivedGTdata.header.stamp = curTime;
+    estimatedRobPose.header.stamp = curTime;
+    estimatedRobPose.header.frame_id = "/world"; 
     
     for(int i=0;i<MAX_ROBOTS;i++)
     {
@@ -534,33 +539,25 @@ void SelfRobot::publishSelfState(g2o::SparseOptimizer* graph_ptr)
       
 	if(poseExists)
 	{
-	  //cout<<"I am here and latestOptimizedRobPoseVer = "<<latestOptimizedRobPoseVer<<endl;
 	  VertexSE2* mostRecetPoseVertex = dynamic_cast<VertexSE2*>(graph_ptr->vertices()[latestOptimizedRobPoseVer]);
-	  mostRecetPoseVertex->isOptimizedAtLeastOnce = true;
-	  
-	  msg.robotPose[i].pose.pose.position.x = mostRecetPoseVertex->estimate().translation().x();
-	  msg.robotPose[i].pose.pose.position.y = mostRecetPoseVertex->estimate().translation().y();
-	  msg.robotPose[i].pose.pose.position.z = ROB_HT; //fixed height aboveground
+	  mostRecetPoseVertex->isOptimizedAtLeastOnce = true;            
+          //fill in the generic message for estimated robot pose
+          
+          estimatedRobPose.pose.pose.position.x = mostRecetPoseVertex->estimate().translation().x();
+	  estimatedRobPose.pose.pose.position.y = mostRecetPoseVertex->estimate().translation().y();
+	  estimatedRobPose.pose.pose.position.z = ROB_HT; //fixed height aboveground
 	
-	  msg.robotPose[i].pose.pose.orientation.x = 0;
-	  msg.robotPose[i].pose.pose.orientation.y = 0;
-	  msg.robotPose[i].pose.pose.orientation.z = sin(mostRecetPoseVertex->estimate().rotation().angle()/2);
-	  msg.robotPose[i].pose.pose.orientation.w = cos(mostRecetPoseVertex->estimate().rotation().angle()/2);
-	  
-	  fprintf(mhls_g2o,"VERTEX_SE2 %d %f %f %f %llu %d\n",latestOptimizedRobPoseVer,msg.robotPose[i].pose.pose.position.x,msg.robotPose[i].pose.pose.position.y,mostRecetPoseVertex->estimate().rotation().angle(),mostRecetPoseVertex->timestamp,i+1);
+	  estimatedRobPose.pose.pose.orientation.x = 0;
+	  estimatedRobPose.pose.pose.orientation.y = 0;
+	  estimatedRobPose.pose.pose.orientation.z = sin(mostRecetPoseVertex->estimate().rotation().angle()/2);
+	  estimatedRobPose.pose.pose.orientation.w = cos(mostRecetPoseVertex->estimate().rotation().angle()/2);          
 	  
 	}
       }
     }
-
-
     
     //cout<<"Robot orientation angle = "<<angle<<" cos (angle) = "<<cos(angle)<<" and sin(angle) = "<<sin(angle)<<endl;
-
-    
-    selfState_publisher.publish(msg);
-    virtualGTPublisher.publish(receivedGTdata);
-    
+    selfState_publisher_generic.publish(estimatedRobPose);
 }
 
 
