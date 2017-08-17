@@ -118,3 +118,6 @@ add_library(G2O_LIBS STATIC IMPORTED)
 add_executable(mh_solver_frontend src/mh_solver_frontend.cpp)
 target_link_libraries(mh_solver_frontend ${G2O_LIBS} ${catkin_LIBRARIES} ${rosbag_LIBRARIES})
 
+add_executable(single_robot_localization src/single_robot_localization.cpp)
+target_link_libraries(single_robot_localization ${G2O_LIBS} ${catkin_LIBRARIES} ${rosbag_LIBRARIES})
+
