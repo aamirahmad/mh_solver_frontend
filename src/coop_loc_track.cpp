@@ -136,7 +136,7 @@ void Target::addNewTGTVertexAndEdgesAround(double tgtX, double tgtY, double tgtZ
    if(makeNewTargetNode)
    {
       if(tgtVertexCounter==0 )
-	tgtVertexID = (MAX_ROBOTS+1)*MAX_INDIVIDUAL_STATES;
+	tgtVertexID = (NUM_ROBOTS+1)*MAX_INDIVIDUAL_STATES;
       else
 	tgtVertexID++;
       //   cout<<" ball seq value is "<<seq<<endl; 
@@ -259,7 +259,7 @@ void Target::addNewTGTVertexAndEdgesAround(double tgtX, double tgtY, double tgtZ
 	  priorTargetPosition = Eigen::Vector4d(0,0,0.0,0.0);
 	  //Create the Prior SE2 Node now. This node will keep track of the past information.
 	  VertexXY_VXVY * v_target_prior = new VertexXY_VXVY();
-	  v_target_prior->setId((MAX_ROBOTS+1)*MAX_INDIVIDUAL_STATES - 1); //The ID is one before the first node position of this target  
+	  v_target_prior->setId((NUM_ROBOTS+1)*MAX_INDIVIDUAL_STATES - 1); //The ID is one before the first node position of this target  
 	  v_target_prior->setEstimate(priorTargetPosition);
 	  v_target_prior->timestamp =  firstTargetnode->timestamp;
 	  v_target_prior->setFixed(true);
@@ -302,11 +302,11 @@ void Target::addNewTGTVertexAndEdgesAround(double tgtX, double tgtY, double tgtZ
 	    priorTargetPosition = Eigen::Vector4d(vertex_to_become_prior->estimate().x(),vertex_to_become_prior->estimate().y(),vertex_to_become_prior->estimate().z(),vertex_to_become_prior->estimate().w());
 	    
 	    //We now have to remove the last added prior node and a new prior node that contains the updated past. One may simply update the previous prior node but seems like it is not so straightforward to do so using g2o. Therefore I am copying the prious prior, deleting it, updating locally and then adding a new prior node which is the updated prior node
-	    VertexXY_VXVY* v_prior_old = dynamic_cast<VertexXY_VXVY*>(graph_ptr->vertices()[(MAX_ROBOTS+1)*MAX_INDIVIDUAL_STATES - 1]);
+	    VertexXY_VXVY* v_prior_old = dynamic_cast<VertexXY_VXVY*>(graph_ptr->vertices()[(NUM_ROBOTS+1)*MAX_INDIVIDUAL_STATES - 1]);
 	    graph_ptr->removeVertex(v_prior_old,/*bool detach=*/false);
 	    
 	    VertexXY_VXVY * v_target_prior = new VertexXY_VXVY();
-	    v_target_prior->setId((MAX_ROBOTS+1)*MAX_INDIVIDUAL_STATES - 1); //The ID is one before the first node pose of this robot, same as the old prior
+	    v_target_prior->setId((NUM_ROBOTS+1)*MAX_INDIVIDUAL_STATES - 1); //The ID is one before the first node pose of this robot, same as the old prior
 	    v_target_prior->setEstimate(priorTargetPosition);
 	    v_target_prior->timestamp =  vertex_to_become_prior->timestamp;
 	    v_target_prior->setFixed(true);
@@ -893,6 +893,8 @@ void SelfRobot::solveSlidingWindowGraph(g2o::SparseOptimizer* graph_ptr)
       }  
 
 
+      //cout << "Almost initialized"<<endl;
+      
       graph_ptr->initializeOptimization();
       graph_ptr->computeActiveErrors();
 
@@ -910,13 +912,14 @@ void SelfRobot::solveSlidingWindowGraph(g2o::SparseOptimizer* graph_ptr)
 #ifdef  SAVE_GRAPHFILES
       graph_ptr->save(filename);
 #endif 
-      
-      
+
       VertexSE2* mostRecetPoseVertex = dynamic_cast<VertexSE2*>(graph_ptr->vertices()[SE2vertexID]);
+      //cout << "Failing here"<<endl;
       
       // extracting most recent target position
       if((targetsToTrack[0]->tgtVertexCounter>0 && graph_ptr->vertices()[targetsToTrack[0]->tgtVertexID]))
       {
+        
 	VertexXY_VXVY * mostRecetTargetVertex = dynamic_cast<VertexXY_VXVY*>(graph_ptr->vertices()[targetsToTrack[0]->tgtVertexID]);
 	mostRecetTargetVertex->isOptimizedAtLeastOnce=true;
 	cout<<"Most recent Ball Vertex is "<<targetsToTrack[0]->tgtVertexID<<endl;
@@ -940,7 +943,6 @@ void SelfRobot::solveSlidingWindowGraph(g2o::SparseOptimizer* graph_ptr)
       // extracting most recent self pose
       //cout<<"Most recent Pose theta is = "<<mostRecetPoseVertex->estimate().rotation().angle()<<endl;
       curPose = mostRecetPoseVertex->estimate().toIsometry();      
-      
       //cout<<"mostRecetPoseVertex->hessian is = "<<endl<<mostRecetPoseVertex->hessian(0,0)<<" "<<mostRecetPoseVertex->hessian(0,1)<<"  "<<mostRecetPoseVertex->hessian(0,2)<<endl;
       //cout<<mostRecetPoseVertex->hessian(1,0)<<"  "<<mostRecetPoseVertex->hessian(1,1)<<"  "<<mostRecetPoseVertex->hessian(1,2)<<endl;
       //cout<<mostRecetPoseVertex->hessian(2,0)<<"  "<<mostRecetPoseVertex->hessian(2,1)<<"  "<<mostRecetPoseVertex->hessian(2,2)<<endl;
@@ -980,7 +982,7 @@ void SelfRobot::publishSelfState(g2o::SparseOptimizer* graph_ptr)
       
 	int latestOptimizedRobPoseVer = (*currentPoseVertexIDs)[i];
 	bool poseExists = false;
-	//cout<<"latestOptimizedRobPoseVer = "<<latestOptimizedRobPoseVer<<endl;
+// 	//cout<<"latestOptimizedRobPoseVer = "<<latestOptimizedRobPoseVer<<endl;
 	//This loop is to check whether the latest pose exists or not
 	for(int j=0; j<WINDOW_SIZE;j++)
 	{
@@ -995,20 +997,8 @@ void SelfRobot::publishSelfState(g2o::SparseOptimizer* graph_ptr)
       
 	if(poseExists)
 	{
-	  //cout<<"I am here and latestOptimizedRobPoseVer = "<<latestOptimizedRobPoseVer<<endl;
 	  VertexSE2* mostRecetPoseVertex = dynamic_cast<VertexSE2*>(graph_ptr->vertices()[latestOptimizedRobPoseVer]);
 	  mostRecetPoseVertex->isOptimizedAtLeastOnce = true;
-	  
-	  msg.robotPose[i].pose.pose.position.x = mostRecetPoseVertex->estimate().translation().x();
-	  msg.robotPose[i].pose.pose.position.y = mostRecetPoseVertex->estimate().translation().y();
-	  msg.robotPose[i].pose.pose.position.z = ROB_HT; //fixed height aboveground
-	
-	  msg.robotPose[i].pose.pose.orientation.x = 0;
-	  msg.robotPose[i].pose.pose.orientation.y = 0;
-	  msg.robotPose[i].pose.pose.orientation.z = sin(mostRecetPoseVertex->estimate().rotation().angle()/2);
-	  msg.robotPose[i].pose.pose.orientation.w = cos(mostRecetPoseVertex->estimate().rotation().angle()/2);
-	  
-	  fprintf(mhls_g2o,"VERTEX_SE2 %d %f %f %f %llu %d\n",latestOptimizedRobPoseVer,msg.robotPose[i].pose.pose.position.x,msg.robotPose[i].pose.pose.position.y,mostRecetPoseVertex->estimate().rotation().angle(),mostRecetPoseVertex->timestamp,i+1);
 
           //fill in the generic message for estimated robot pose
           estimatedRobPose.pose.pose.position.x = mostRecetPoseVertex->estimate().translation().x();

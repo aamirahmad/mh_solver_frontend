@@ -58,11 +58,11 @@
 
 //////////////////////////////////////////
 // const bool OMNI_ACTIVE[5] = {true,false,true,true,true};
-int MY_ID = 1;
-int NUM_ROBOTS = 4; // total number of robots in the team including self
-int MAX_ROBOTS = 5; // Just for convinience... not really a requirement
+int MY_ID;
+int NUM_ROBOTS; // total number of robots in the team including self
+int MAX_ROBOTS; // Just for convinience... not really a requirement
 int NUM_TARGETS = 1;
-int NUM_TARGETS_USED = 1;
+int NUM_TARGETS_USED;
 //////////////////////////////////////////
 
 
@@ -85,19 +85,19 @@ const float K3 = 0.2, K4 = 0.5, K5 = 0.5;
 const std::size_t ROB_HT = 0.81; //fixed height above ground in meter
 
 
-int MAX_VERTEX_COUNT = 24000;
+int MAX_VERTEX_COUNT;
 
 //initial poses of the robot. Use the first one only for testing. second one is generic
 //const double initArray[10] = {5.086676,-2.648978,0.0,0.0,1.688772,-2.095153,3.26839,-3.574936,4.058235,-0.127530};
 const double initArray[10] = {0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0};
 
 
-int MAX_INDIVIDUAL_STATES = 20000;
+int MAX_INDIVIDUAL_STATES;
 
 //these should be equal to MAX_VERTEX_COUNT in case of full graph optimization
-int WINDOW_SIZE=0; //these two are not const anymore because they are set by the main is not 
-int DECAY_LAMBDA = WINDOW_SIZE;
-int WINDOW_SIZE_TGT=20;
+int WINDOW_SIZE; //these two are not const anymore because they are set by the main is not 
+int DECAY_LAMBDA;
+int WINDOW_SIZE_TGT=10;
 float avgComputationTime;
 
 
@@ -364,7 +364,7 @@ class GenerateGraph
       for(int i=0;i<NUM_ROBOTS;i++)
       {
 	initialRobotPose = Eigen::Rotation2Dd(-M_PI).toRotationMatrix();
-	initialRobotPose.translation() = Eigen::Vector2d(initArray[2*i+0],initArray[2*i+1]); 
+	initialRobotPose.translation() = Eigen::Vector2d(0,0); 
 	
 	if(i+1 == MY_ID)
 	{

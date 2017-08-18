@@ -4,17 +4,17 @@
  
   <arg name="robotID" default="1"/>
   <arg name="numRobots" default="3" />
-  <arg name="WindowSize" default="4" />
-  <arg name="DecayLambda" default="4" />
+  <arg name="WindowSize" default="10" />
+  <arg name="DecayLambda" default="10" />
   
      
-  <node name="coop_loc_track_$(arg robotID)" pkg="mh_solver_frontend" type="coop_loc_track" args="$(arg WindowSize) $(arg DecayLambda)" output="screen" launch-prefix="gdb -ex run --args">
+  <node name="coop_loc_track_$(arg robotID)" pkg="mh_solver_frontend" type="coop_loc_track" args="$(arg WindowSize) $(arg DecayLambda)" output="screen">
     
     <param name="MY_ID" value="$(arg robotID)" type="int" />   
     
     <param name="NUM_ROBOTS" value="$(arg numRobots)" type="int" />  
     
-    <param name="MAX_VERTEX_COUNT" value="150000" type="int" /> 
+    <param name="MAX_VERTEX_COUNT" value="750000" type="int" /> 
     
     <param name="MAX_INDIVIDUAL_STATES" value="50000" type="int" />  
     
