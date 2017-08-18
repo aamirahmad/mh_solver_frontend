@@ -32,6 +32,6 @@
     <!-- <metapackage/> -->
 
     <!-- Other tools can request additional information be placed here -->
-    <cpp cflags="-I~/local/include -I~/local/src" lflags="~/local/lib"/>
+    <cpp cflags="-I/local/include -I/local/src" lflags="/local/lib"/>
   </export>
 </package>

@@ -58,9 +58,6 @@ find_package(OpenCV REQUIRED)
 INCLUDE_DIRECTORIES(${catkin_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
 
 
-include_directories(~/local/include)
-link_directories(~/local/lib)
-
 ### Eigen  #############################################
 find_package(cmake_modules REQUIRED)
 
