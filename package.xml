@@ -2,7 +2,7 @@
 <package>
   <name>mh_solver_frontend</name>
   <version>0.0.0</version>
-  <description>A frontend for "moving-horizon nonlinear least squares-based multirobot cooperative perception" applied to the soccer robot dataset.</description>
+  <description>A frontend for "moving-horizon nonlinear least squares-based multirobot cooperative perception" applied to real or simulated soccer robot datasets.</description>
 
   <maintainer email="aamir.iitkgp@gmail.com">aamir</maintainer>
 
@@ -32,6 +32,6 @@
     <!-- <metapackage/> -->
 
     <!-- Other tools can request additional information be placed here -->
-    <cpp cflags="-I/home/aamir/local/include -I/home/aamir/local/src" lflags="/home/aamir/local/lib"/>
+    <cpp cflags="-I~/local/include -I~/local/src" lflags="~/local/lib"/>
   </export>
 </package>

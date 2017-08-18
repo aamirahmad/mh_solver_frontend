@@ -14,12 +14,20 @@
     
     <param name="NUM_ROBOTS" value="$(arg numRobots)" type="int" />  
     
-    <param name="MAX_VERTEX_COUNT" value="750000" type="int" /> 
+    <param name="MAX_VERTEX_COUNT" value="150000" type="int" /> 
     
     <param name="MAX_INDIVIDUAL_STATES" value="50000" type="int" />  
     
+    <param name="NUM_TARGETS" value="1" type="int" /> 
+    
+    <param name="NUM_TARGETS_USED" value="1" type="int" />     
 
-        
+    <param name="TGT_ACC_COEFF" value="100000.0" type="double" /> 
+    
+    <param name="TGT_INFORMATION_X" value="5.0" type="double" /> 
+
+    <param name="TGT_INFORMATION_Y" value="5.0" type="double" />     
+     
    </node>
 
 </launch> 

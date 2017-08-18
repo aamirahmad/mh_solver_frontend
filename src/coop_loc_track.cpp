@@ -61,8 +61,8 @@ void Target::addObservationEdgesPoseToTarget(double tgtX, double tgtY, double tg
       ROS_WARN(" covariance negative!!! ");
     //tempInformationOnTarget<<10/covXX,0,
     //				0,10/covYY;
-    tempInformationOnTarget<<10,0,
-				0,10;                                
+    tempInformationOnTarget<<TGT_INFORMATION_X,0,
+				0,TGT_INFORMATION_Y;                                
     
     EdgeSE2_XY_VXVY * e = new  EdgeSE2_XY_VXVY();
     // retrieve vertex pointers from graph with id's
@@ -130,6 +130,13 @@ void Target::addNewTGTVertexAndEdgesAround(double tgtX, double tgtY, double tgtZ
    if(deltaT>0.030) // 30 millisecond is the observation frequnecy inverse.
      makeNewTargetNode = true;
    
+   if(deltaT>1.0 && tgtVertexCounter>0)
+   {
+       ROS_INFO(" delta T in observation  !!! %f\n", deltaT);
+       return;
+   }
+   
+   
    //ROS_INFO(" delta T in observation  !!! %f\n", deltaT);
    
    
@@ -139,7 +146,8 @@ void Target::addNewTGTVertexAndEdgesAround(double tgtX, double tgtY, double tgtZ
 	tgtVertexID = (NUM_ROBOTS+1)*MAX_INDIVIDUAL_STATES;
       else
 	tgtVertexID++;
-      //   cout<<" ball seq value is "<<seq<<endl; 
+      
+      //cout<<" tgtVertexID value is "<<tgtVertexID<<endl; 
       
       //vertex id for the target start after all the robot's vertices hence below (NUM_ROBOTS+1) (below the first robot's id the ids are reserved for the landmarks/environmental features ... approximately equal to a value of MAX_INDIVIDUAL_STATES)
       //moreover, the target vertices are created only for and when the robot running the algorithm receives the odometry signal (not the ball detection signal because it is assumed to have a lower frequency)
@@ -211,7 +219,7 @@ void Target::addNewTGTVertexAndEdgesAround(double tgtX, double tgtY, double tgtZ
 		
 	  // add information matrix
 	  ///@TODO What is this magic number? FIX it!
-	  float invQ = 100000; //Just for testing acceleration noise variance = (0.0001)^2 m^2/s^4
+	  //float invQ = TGT_ACC_COEFF; //Just for testing acceleration noise variance = (0.0001)^2 m^2/s^4
 	  // now finding the information matrix components which form the edge!
 	  float T = ((float)(abs(curNodeTimestamp-prevNodeTimestamp)))/1000000;//delta T between the two states in seconds (division by 1000000 since timestamps are in microseconds)
 	  if(T == 0)
@@ -224,7 +232,7 @@ void Target::addNewTGTVertexAndEdgesAround(double tgtX, double tgtY, double tgtZ
 	  if(T>0.1)
 	    T = 0.1;
 	    
-	  float T4by2 = invQ*powf(T,4)/2, T3by2 = invQ*powf(T,3)/2, T2 = invQ*powf(T,2); 
+	  float T4by2 = TGT_ACC_COEFF*powf(T,4)/2, T3by2 = TGT_ACC_COEFF*powf(T,3)/2, T2 = TGT_ACC_COEFF*powf(T,2); 
 
 		  
 	  Eigen::Matrix<double, 4, 4> Lambda_tgt;      
@@ -397,9 +405,9 @@ void Target::addNewTGTVertexAndEdgesAround(double tgtX, double tgtY, double tgtZ
     if(covXX<=0||covYY<=0)
       ROS_WARN(" covariance negative!!! ");
     //tempInformationOnTarget<<1/covXX,0,
-    //				0,1/covYY;
-    tempInformationOnTarget<<10,0,
-				0,10;                                
+    //				0,1/covYY;       
+    tempInformationOnTarget<<TGT_INFORMATION_X,0,
+				0,TGT_INFORMATION_Y;                                     
     
     EdgeSE2_XY_VXVY * e = new  EdgeSE2_XY_VXVY();
     // retrieve vertex pointers from graph with id's
@@ -453,8 +461,8 @@ void SelfRobot::selfOdometryCallback(const nav_msgs::Odometry::ConstPtr& odometr
   prevTime = curTime;
   curTime = odometry->header.stamp;
   
-  ROS_WARN(" got odometry from robot %d at time %d",RobotNumber, odometry->header.stamp.sec);  
-  ROS_WARN(" value of vertextCount_ for robot %d is %d",RobotNumber,vertextCounter_);  
+  //ROS_WARN(" got odometry from robot %d at time %d",RobotNumber, odometry->header.stamp.sec);  
+  //ROS_WARN(" value of vertextCount_ for robot %d is %d",RobotNumber,vertextCounter_);  
   //   ROS_WARN(" TotalvertextCount_ now is %d",*totalVertextCounter);  
   
   if((*totalVertextCounter)<MAX_VERTEX_COUNT)
@@ -496,8 +504,8 @@ void SelfRobot::selfOdometryCallback(const nav_msgs::Odometry::ConstPtr& odometr
      //v->setFixed(true);
     graph_ptr->addVertex(v);
     (*currentPoseVertexIDs)[RobotNumber-1] = SE2vertexID;
-    ROS_WARN("SE2vertexID = %d",SE2vertexID);
-    cout<<"(*currentPoseVertexIDs)[RobotNumber] = "<<(*currentPoseVertexIDs)[RobotNumber-1]<<endl;
+    //ROS_WARN("SE2vertexID = %d",SE2vertexID);
+    //cout<<"(*currentPoseVertexIDs)[RobotNumber] = "<<(*currentPoseVertexIDs)[RobotNumber-1]<<endl;
     
     //start adding self-robot pose-pose edges if seq is greater than 0
     if(vertextCounter_>0) 
@@ -763,12 +771,14 @@ void SelfRobot::selfTargetDataCallback(const read_omni_dataset::BallData::ConstP
      
      targetsToTrack[0]->addNewTGTVertexAndEdgesAround(ballData->x,ballData->y,ballData->z, ballData->mismatchFactor, RobotNumber, SE2vertexID, curObservationTime, graph_ptr);
   }
+  else
+      ROS_WARN("Target Info discarded either because it was not found or NUM_TARGETS_USED =%d",NUM_TARGETS_USED); 
 }
 
 
 void SelfRobot::selfLandmarkDataCallback(const read_omni_dataset::LRMLandmarksData::ConstPtr& landmarkData, int RobotNumber, g2o::SparseOptimizer* graph_ptr)
 {
-  ROS_INFO(" got landmark from robot %d with current vertex id as %d",RobotNumber,SE2vertexID);  
+  //ROS_INFO(" got landmark from robot %d with current vertex id as %d",RobotNumber,SE2vertexID);  
   
   uint seq = landmarkData->header.seq;
   
@@ -780,7 +790,7 @@ void SelfRobot::selfLandmarkDataCallback(const read_omni_dataset::LRMLandmarksDa
     if(landmarkData->found[i])
     {
      
-      cout<<"landmark "<<i<<" is at X_rob = "<<landmarkData->x[i]<< " and Y_rob = "<<landmarkData->y[i]<<endl;
+      //cout<<"landmark "<<i<<" is at X_rob = "<<landmarkData->x[i]<< " and Y_rob = "<<landmarkData->y[i]<<endl;
       Eigen::Vector2d tempLandmarkObsVec = Eigen::Vector2d(landmarkData->x[i],landmarkData->y[i]);
       // add information matrix
       Eigen::Matrix<double, 2, 2> tempInformationOnLandmark;
@@ -922,7 +932,7 @@ void SelfRobot::solveSlidingWindowGraph(g2o::SparseOptimizer* graph_ptr)
         
 	VertexXY_VXVY * mostRecetTargetVertex = dynamic_cast<VertexXY_VXVY*>(graph_ptr->vertices()[targetsToTrack[0]->tgtVertexID]);
 	mostRecetTargetVertex->isOptimizedAtLeastOnce=true;
-	cout<<"Most recent Ball Vertex is "<<targetsToTrack[0]->tgtVertexID<<endl;
+	//cout<<"Most recent Ball Vertex is "<<targetsToTrack[0]->tgtVertexID<<endl;
 	
 	targetsToTrack[0]->prevPose(0) = targetsToTrack[0]->curPose(0);
 	targetsToTrack[0]->prevPose(1) = targetsToTrack[0]->curPose(1); 
@@ -1048,7 +1058,7 @@ void TeammateRobot::teammateOdometryCallback(const nav_msgs::Odometry::ConstPtr&
   uint seq = odometry->header.seq;
   curTime = odometry->header.stamp;
   
-  ROS_INFO(" got odometry from robot %d at time %d",RobotNumber, odometry->header.stamp.sec);  
+  //sROS_INFO(" got odometry from robot %d at time %d",RobotNumber, odometry->header.stamp.sec);  
   //ROS_WARN(" value of vertextCount_ for robot %d is %d",RobotNumber,vertextCounter_);  
   //ROS_WARN(" TotalvertextCount_ now is %d",*totalVertextCounter);  
   

@@ -58,9 +58,8 @@ find_package(OpenCV REQUIRED)
 INCLUDE_DIRECTORIES(${catkin_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
 
 
-include_directories(/home/aamir/local/include)
-link_directories(/home/aamir/local/lib)
-# link_libraries(csparse cxsparse g2o_csparse_extension g2o_cli g2o_core g2o_interface g2o_parser g2o_solver_cholmod g2o_solver_csparse g2o_solver_dense g2o_solver_pcg g2o_stuff g2o_types_icp g2o_types_sba g2o_types_sim3 g2o_types_slam2d g2o_types_slam3d)
+include_directories(~/local/include)
+link_directories(~/local/lib)
 
 ### Eigen  #############################################
 find_package(cmake_modules REQUIRED)
@@ -75,10 +74,6 @@ include_directories(${Boost_INCLUDE_DIRS})
 
 
 ####### g2o ############################################
-
-# SET (G2O_LIBS g2o_types_slam2d  g2o_cli g2o_core g2o_interface g2o_parser g2o_solver_cholmod
-# g2o_solver_csparse g2o_solver_dense g2o_solver_pcg g2o_stuff g2o_types_icp
-# g2o_types_sba g2o_types_sim3  g2o_types_slam3d csparse cxsparse g2o_csparse_extension)
 SET (G2O_LIBS g2o_simulator
 g2o_types_icp
 g2o_types_sim3
@@ -110,14 +105,9 @@ g2o_csparse_extension)
 
 add_library(G2O_LIBS STATIC IMPORTED)
 
-# ADD_LIBRARY(G2O_LIBS libg2o /home/aamir/local/lib)
-
 ####### g2o custom types ###############################
 #ADD_SUBDIRECTORY(src/custom_types)
 
-
-add_executable(mh_solver_frontend src/mh_solver_frontend.cpp)
-target_link_libraries(mh_solver_frontend ${G2O_LIBS} ${catkin_LIBRARIES} ${rosbag_LIBRARIES})
 
 add_executable(single_robot_localization src/single_robot_localization.cpp)
 target_link_libraries(single_robot_localization ${G2O_LIBS} ${catkin_LIBRARIES} ${rosbag_LIBRARIES})

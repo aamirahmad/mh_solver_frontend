@@ -48,8 +48,8 @@
 #include "std_msgs/String.h"
 #include <sys/time.h>
 
-#define SAVE_GRAPHFILES
-//#undef SAVE_GRAPHFILES 
+//#define SAVE_GRAPHFILES
+#undef SAVE_GRAPHFILES 
 
 // #define M_PI        3.141592653589793238462643383280    /* pi */
 
@@ -60,9 +60,11 @@
 // const bool OMNI_ACTIVE[5] = {true,false,true,true,true};
 int MY_ID;
 int NUM_ROBOTS; // total number of robots in the team including self
-int MAX_ROBOTS; // Just for convinience... not really a requirement
 int NUM_TARGETS = 1;
-int NUM_TARGETS_USED;
+int NUM_TARGETS_USED = 1;
+float TGT_ACC_COEFF = 10000000;
+float TGT_INFORMATION_X = 10;
+float TGT_INFORMATION_Y = 10;
 //////////////////////////////////////////
 
 
@@ -342,6 +344,11 @@ class GenerateGraph
       nh_.getParam("NUM_ROBOTS", NUM_ROBOTS);      
       nh_.getParam("MAX_VERTEX_COUNT", MAX_VERTEX_COUNT);    
       nh_.getParam("MAX_INDIVIDUAL_STATES", MAX_INDIVIDUAL_STATES);    
+      nh_.getParam("NUM_TARGETS", NUM_TARGETS);    
+      nh_.getParam("NUM_TARGETS_USED", NUM_TARGETS_USED);    
+      nh_.getParam("TGT_ACC_COEFF", TGT_ACC_COEFF);    
+      nh_.getParam("TGT_INFORMATION_X", TGT_INFORMATION_X);    
+      nh_.getParam("TGT_INFORMATION_Y", TGT_INFORMATION_Y);         
       
       printf("MY_ID =%d\n",MY_ID);
       printf("NUM_ROBOTS =%d\n",NUM_ROBOTS);
