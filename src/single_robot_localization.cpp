@@ -141,7 +141,7 @@ void SelfRobot::selfOdometryCallback(const nav_msgs::Odometry::ConstPtr& odometr
       } 
       
     }
-    else ///First node is not set as a fixed node.. A prior node with 0 mean and high covariance is created and attached to the firt node with a very loose edge
+    else ///First node is not set as a fixed node.. A prior node with 0 mean and high covariance is created and attached to the first node with a very loose edge
     {
       v->setFixed(false); 
       
@@ -193,11 +193,11 @@ void SelfRobot::selfOdometryCallback(const nav_msgs::Odometry::ConstPtr& odometr
    {
       if(vertextCounter_ == MAX_VERTEX_COUNT-5)
       {
-	cout<<"avgComputationTime = "<<avgComputationTime<<endl;
-	cout<<"windowSolverInvokeCount = "<<windowSolverInvokeCount<<endl;	
+	//cout<<"avgComputationTime = "<<avgComputationTime<<endl;
+	//cout<<"windowSolverInvokeCount = "<<windowSolverInvokeCount<<endl;	
 	//compute average time of solver per iteration of the estimator
 	avgComputationTime = avgComputationTime/windowSolverInvokeCount;
-	printf("\n\nverage time taken by the solver per iteration of the estimator = %f\n\n\n",avgComputationTime);
+	//printf("\n Average time taken by the solver per iteration of the estimator = %f\n\n\n",avgComputationTime);
       }     
       //Now solve the resulting graph
       timespec ts1,ts2;
@@ -209,15 +209,14 @@ void SelfRobot::selfOdometryCallback(const nav_msgs::Odometry::ConstPtr& odometr
 
       clock_gettime(CLOCK_REALTIME, &ts2);
       float diff_millisec = fabs(((float)ts2.tv_nsec - (float)ts1.tv_nsec)/1000000);
-      cout<<"time taken =  "<< diff_millisec <<" milli seconds"<<'\n';
+      //cout<<"time taken =  "<< diff_millisec <<" milli seconds"<<'\n';
       
       computationTime[vertextCounter_] = diff_millisec;
       
-      if(diff_millisec<30) //removing outliers
-      {
-	avgComputationTime += diff_millisec;
-        windowSolverInvokeCount++;
-      }
+
+      avgComputationTime += diff_millisec;
+      windowSolverInvokeCount++;
+
       
       
       //cout<<"avgComputationTime = "<<avgComputationTime<<endl;
@@ -309,7 +308,7 @@ void SelfRobot::selfOdometryCallback(const nav_msgs::Odometry::ConstPtr& odometr
      if(vertextCounter_ >1)
      {
 	//simply solve it
-	solveSlidingWindowGraph(graph_ptr);
+	//solveSlidingWindowGraph(graph_ptr);
 	//U[vertextCounter_-1] = graph_ptr->chi2() + U_prior;
        
      }   
@@ -432,7 +431,7 @@ void SelfRobot::selfGTDataCallback(const geometry_msgs::PoseStamped::ConstPtr& g
 void SelfRobot::solveSlidingWindowGraph(g2o::SparseOptimizer* graph_ptr)
 {
       /// start Optimizatin here
-     
+    
       char filename[100];
       sprintf(filename, "original_graph_only.g2o");
 #ifdef  SAVE_GRAPHFILES
@@ -463,7 +462,8 @@ void SelfRobot::solveSlidingWindowGraph(g2o::SparseOptimizer* graph_ptr)
       }  
 
 
-      graph_ptr->initializeOptimization();
+
+      graph_ptr->initializeOptimization();      
       graph_ptr->computeActiveErrors();
 
       int result = graph_ptr->optimize(maxIterations);
@@ -558,6 +558,36 @@ void SelfRobot::publishSelfState(g2o::SparseOptimizer* graph_ptr)
     
     //cout<<"Robot orientation angle = "<<angle<<" cos (angle) = "<<cos(angle)<<" and sin(angle) = "<<sin(angle)<<endl;
     selfState_publisher_generic.publish(estimatedRobPose);
+    
+    //Calculate the error between the estimated pose and the ground truth pose and publish it.
+    //Note that this possible only when experimenting in a simulated environment, obviously!
+    errorInPose_wrt_GT.header = estimatedRobPose.header;
+    errorInPose_wrt_GT.pose.position.x = gtRobPose.pose.position.x - estimatedRobPose.pose.pose.position.x;
+    
+    errorInPose_wrt_GT.pose.position.y = gtRobPose.pose.position.y - estimatedRobPose.pose.pose.position.y;
+    
+    errorInPose_wrt_GT.pose.position. z = 0; // Robot only has a 2D position
+    
+    // Note that q2 is set as inverse of the estimated pose. This eases the multiplication later.
+    Eigen:Quaterniond q1(gtRobPose.pose.orientation.w,gtRobPose.pose.orientation.x,gtRobPose.pose.orientation.y,gtRobPose.pose.orientation.z), q2(estimatedRobPose.pose.pose.orientation.w,-estimatedRobPose.pose.pose.orientation.x,-estimatedRobPose.pose.pose.orientation.y,-estimatedRobPose.pose.pose.orientation.z);
+    
+    
+    Eigen::Quaterniond erroQ;
+    erroQ.setIdentity();
+
+    erroQ.w() = q1.w() * q2.w() - q1.vec().dot(q2.vec());
+    erroQ.vec() = q1.w() * q2.vec() + q2.w() * q1.vec() + q1.vec().cross(q2.vec());
+    
+    errorInPose_wrt_GT.pose.orientation.w = erroQ.w();
+    errorInPose_wrt_GT.pose.orientation.x = erroQ.x();
+    errorInPose_wrt_GT.pose.orientation.y = erroQ.y();
+    errorInPose_wrt_GT.pose.orientation.z = erroQ.z();
+    
+    double errorInYaw = 0; // In 2d robot case, yaw is the only angle concerning us.
+    errorInYaw = 2*acos(erroQ.w());
+    ROS_INFO("Error in yaw angle of the estimated robot position = %f",errorInYaw);
+    estimationErrorPublisher.publish(errorInPose_wrt_GT);   
+    
 }
 
 

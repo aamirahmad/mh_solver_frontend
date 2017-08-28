@@ -3,20 +3,22 @@
 
  
   <arg name="robotID" default="1"/>
-  <arg name="numRobots" default="1" />
-  <arg name="WindowSize" default="100" />
-  <arg name="DecayLambda" default="20" />
+  <arg name="numRobots" default="3" />
+  <arg name="WindowSize" default="20" />
+  <arg name="DecayLambda" default="10" />
   
      
-  <node name="single_robot_localization_$(arg robotID)" pkg="mh_solver_frontend" type="single_robot_localization" args="$(arg WindowSize) $(arg DecayLambda)" output="screen">
+<!--  <node name="single_robot_localization_$(arg robotID)" pkg="mh_solver_frontend" type="single_robot_localization" args="$(arg WindowSize) $(arg DecayLambda)" output="screen" launch-prefix="gdb -ex run">-->
+      
+  <node name="single_robot_localization_$(arg robotID)" pkg="mh_solver_frontend" type="single_robot_localization" args="$(arg WindowSize) $(arg DecayLambda)" output="screen" respawn="true" >      
     
     <param name="MY_ID" value="$(arg robotID)" type="int" />   
     
     <param name="NUM_ROBOTS" value="$(arg numRobots)" type="int" />  
     
-    <param name="MAX_VERTEX_COUNT" value="150000" type="int" /> 
+    <param name="MAX_VERTEX_COUNT" value="15000" type="int" /> 
     
-    <param name="MAX_INDIVIDUAL_STATES" value="50000" type="int" />  
+    <param name="MAX_INDIVIDUAL_STATES" value="5000" type="int" />  
     
 
         

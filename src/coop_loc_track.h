@@ -138,7 +138,11 @@ class Target
 class SelfRobot
 {
   geometry_msgs::PoseWithCovarianceStamped estimatedRobPose;  
-  geometry_msgs::PoseStamped gtRobPose;  
+  vector<geometry_msgs::PoseStamped> *gtRobPose;   
+  geometry_msgs::PoseStamped errorInPose_wrt_GT;  
+  geometry_msgs::PointStamped gtTargetPose; //for only one target now. must be extended for any number of targets
+  geometry_msgs::PoseStamped errorInTargetPose_wrt_GT; //for only one target now. must be extended for any number of targets
+  double errorInYaw; // In 2d robot case, yaw is the only angle concerning us.
   
   geometry_msgs::PointStamped estimatedTargetPose;  
   
@@ -146,7 +150,8 @@ class SelfRobot
   Subscriber sOdom_;
   Subscriber sBall_;
   Subscriber sLandmark_;
-  Subscriber gtRob_sub_;  
+  Subscriber gtRob_sub_;
+  Subscriber gtTarget_sub_;
   
   float computationTime[20000];
 
@@ -168,11 +173,12 @@ class SelfRobot
   int solverStep;
   mh_solver_frontend::RobotState msg;
   read_omni_dataset::BallData estimateBallState;
-  Publisher selfState_publisher_generic, targetStatePublisher, targetStatePublisher_generic, virtualGTPublisher; // virtualGTPublisher because gt publisher is actually the rosbag but we need to subscribe to it and publish it synchronously with the estimated rbot state output.
+  Publisher selfState_publisher_generic, targetStatePublisher, targetStatePublisher_generic; // virtualGTPublisher because gt publisher is actually the rosbag but we need to subscribe to it and publish it synchronously with the estimated rbot state output.
   
-  vector<Publisher> estimatedStatePublishers;
-  
+  vector<Publisher> estimatedStatePublishers, estimationErrorPublisher;
+  Publisher estimationErrorInTargetPublisher;
   vector<Target*> targetsToTrack;
+  
   
   //New Variables for scaled arrival cost function in MHE (refer Rao 2013 for theoretical details)
   //double U_prior;
@@ -186,7 +192,7 @@ class SelfRobot
 //   bool 
   
   public:
-    SelfRobot(NodeHandle& nh, g2o::SparseOptimizer* graph, int robotNumber, int startCounter, int* totVertCount, int* tgtVertexID, Eigen::Isometry2d _initPose, vector<Target*> _targetsToTrack,vector<int>* _curPosVerID, vector<bool> * _ifRobotIsStarted): vertextCounter_(startCounter), totalVertextCounter(totVertCount), SE2vertexID_prev(0), SE2vertexID(0), initPose(_initPose), targetVertexID(tgtVertexID), targetVertextCounter_(0), targetsToTrack(_targetsToTrack), solverStep(0),currentPoseVertexIDs(_curPosVerID),ifRobotIsStarted(_ifRobotIsStarted)
+    SelfRobot(NodeHandle& nh, g2o::SparseOptimizer* graph, int robotNumber, int startCounter, int* totVertCount, int* tgtVertexID, Eigen::Isometry2d _initPose, vector<Target*> _targetsToTrack,vector<int>* _curPosVerID, vector<bool> * _ifRobotIsStarted,vector<geometry_msgs::PoseStamped>* _gtRobPose): vertextCounter_(startCounter), totalVertextCounter(totVertCount), SE2vertexID_prev(0), SE2vertexID(0), initPose(_initPose), targetVertexID(tgtVertexID), targetVertextCounter_(0), targetsToTrack(_targetsToTrack), solverStep(0),currentPoseVertexIDs(_curPosVerID),ifRobotIsStarted(_ifRobotIsStarted),gtRobPose(_gtRobPose)
     {
         
       (*ifRobotIsStarted)[robotNumber] = false;
@@ -199,6 +205,8 @@ class SelfRobot
       
       gtRob_sub_ =  nh.subscribe<geometry_msgs::PoseStamped>("/omni"+boost::lexical_cast<string>(robotNumber+1)+"/simPose", 10, boost::bind(&SelfRobot::selfGTDataCallback,this, _1,robotNumber+1,graph));
       
+      gtTarget_sub_ =  nh.subscribe<geometry_msgs::PointStamped>("/target/simPose", 10, boost::bind(&SelfRobot::targetGTDataCallback,this, _1,robotNumber+1,graph));
+      
       ROS_INFO(" constructing robot object and called sensor subscribers for robot %d",robotNumber+1);
       
       selfState_publisher_generic = nh.advertise<geometry_msgs::PoseWithCovarianceStamped>("estimatedRobotPose_omni"+boost::lexical_cast<string>(robotNumber+1), 1000); //mhls is
@@ -206,11 +214,17 @@ class SelfRobot
       targetStatePublisher = nh.advertise<read_omni_dataset::BallData>("targetEstimatedState_by_omni"+boost::lexical_cast<string>(MY_ID), 1000);
       
       targetStatePublisher_generic = nh.advertise<geometry_msgs::PointStamped>("genericTargetEstimatedState_by_omni"+boost::lexical_cast<string>(MY_ID), 1000);
-
-    
+  
+      
       estimatedStatePublishers.resize(NUM_ROBOTS);
+      estimationErrorPublisher.resize(NUM_ROBOTS);
       for(int i=0; i<NUM_ROBOTS; i++)
-          estimatedStatePublishers[i] = nh.advertise<geometry_msgs::PoseWithCovarianceStamped>("estimatedRobotPose_omni"+boost::lexical_cast<string>(i+1), 1000); //mhls is
+      {
+          estimatedStatePublishers[i] = nh.advertise<geometry_msgs::PoseWithCovarianceStamped>("estimatedRobotPose_omni"+boost::lexical_cast<string>(i+1), 1000);
+          estimationErrorPublisher[i] = nh.advertise<geometry_msgs::PoseStamped>("errorInEstimatedRobotPose_omni"+boost::lexical_cast<string>(i+1), 1000);
+      }//mhls is
+      estimationErrorInTargetPublisher = nh.advertise<geometry_msgs::PoseStamped>("errorInEstimatedTargetPose", 1000);
+      
       
       mhls_g2o = fopen("mhls_g2o.g2o","w");
       
@@ -239,6 +253,8 @@ class SelfRobot
     void selfLandmarkDataCallback(const read_omni_dataset::LRMLandmarksData::ConstPtr&, int, g2o::SparseOptimizer*);
   
     void selfGTDataCallback(const geometry_msgs::PoseStamped::ConstPtr&, int, g2o::SparseOptimizer*);
+    
+    void targetGTDataCallback(const geometry_msgs::PointStamped::ConstPtr&, int, g2o::SparseOptimizer*);
 
     /// Solve the sliding widnow graph
     void solveSlidingWindowGraph(g2o::SparseOptimizer*);
@@ -258,12 +274,13 @@ class TeammateRobot
 {
     
   geometry_msgs::PoseWithCovarianceStamped estimatedRobPose;  
-  geometry_msgs::PoseStamped gtRobPose;  
+  vector<geometry_msgs::PoseStamped> *gtRobPose;
   
   //One subscriber per sensor in the robot
   Subscriber sOdom_;
   Subscriber sBall_;
   Subscriber sLandmark_;
+  Subscriber gtRob_sub_;
   
   Eigen::Isometry2d initPose; // x y theta;
   Eigen::Isometry2d prevPose;
@@ -282,7 +299,7 @@ class TeammateRobot
   vector<int> *currentPoseVertexIDs;
   
   public:
-    TeammateRobot(NodeHandle& nh, g2o::SparseOptimizer* graph, int robotNumber, int startCounter, int* totVertCount, int* tgtVertexID, Eigen::Isometry2d _initPose, vector<Target*> _targetsToTrack, vector<int> *  _curPosVerID, vector<bool> * _ifRobotIsStarted): vertextCounter_(startCounter), totalVertextCounter(totVertCount), SE2vertexID_prev(0), SE2vertexID(0), initPose(_initPose), targetVertexID(tgtVertexID), targetsToTrack(_targetsToTrack),currentPoseVertexIDs(_curPosVerID),ifRobotIsStarted(_ifRobotIsStarted)
+    TeammateRobot(NodeHandle& nh, g2o::SparseOptimizer* graph, int robotNumber, int startCounter, int* totVertCount, int* tgtVertexID, Eigen::Isometry2d _initPose, vector<Target*> _targetsToTrack, vector<int> *  _curPosVerID, vector<bool> * _ifRobotIsStarted,vector<geometry_msgs::PoseStamped> *_gtRobPose): vertextCounter_(startCounter), totalVertextCounter(totVertCount), SE2vertexID_prev(0), SE2vertexID(0), initPose(_initPose), targetVertexID(tgtVertexID), targetsToTrack(_targetsToTrack),currentPoseVertexIDs(_curPosVerID),ifRobotIsStarted(_ifRobotIsStarted),gtRobPose(_gtRobPose)
     {
       
       (*ifRobotIsStarted)[robotNumber] = false;
@@ -292,6 +309,8 @@ class TeammateRobot
       sBall_ = nh.subscribe<read_omni_dataset::BallData>("/omni"+boost::lexical_cast<string>(robotNumber+1)+"/orangeball3Dposition", 10, boost::bind(&TeammateRobot::teammateTargetDataCallback,this, _1,robotNumber+1,graph));
       
       sLandmark_ = nh.subscribe<read_omni_dataset::LRMLandmarksData>("/omni"+boost::lexical_cast<string>(robotNumber+1)+"/landmarkspositions", 10, boost::bind(&TeammateRobot::teammateLandmarkDataCallback,this, _1,robotNumber+1,graph));
+      
+      gtRob_sub_ =  nh.subscribe<geometry_msgs::PoseStamped>("/omni"+boost::lexical_cast<string>(robotNumber+1)+"/simPose", 10, boost::bind(&TeammateRobot::teammateGTDataCallback,this, _1,robotNumber+1,graph));      
       
       ROS_INFO(" constructing robot object and called sensor subscribers for robot %d",robotNumber+1);
       
@@ -305,6 +324,8 @@ class TeammateRobot
     void teammateTargetDataCallback(const read_omni_dataset::BallData::ConstPtr&, int, g2o::SparseOptimizer*);
      
     void teammateLandmarkDataCallback(const read_omni_dataset::LRMLandmarksData::ConstPtr&, int, g2o::SparseOptimizer*);
+    
+    void teammateGTDataCallback(const geometry_msgs::PoseStamped::ConstPtr&, int, g2o::SparseOptimizer*);  
   
 
     // publish the estimated state of all the teammate robot
@@ -326,6 +347,8 @@ class GenerateGraph
   SelfRobot* robot_;
   vector<TeammateRobot*> teammateRobots_;
   vector<Target*> targets_;
+  
+  vector<geometry_msgs::PoseStamped> gtRobPose_;
   
   g2o::SparseOptimizer* graph_;
   
@@ -356,10 +379,12 @@ class GenerateGraph
       Eigen::Isometry2d initialRobotPose;
       Eigen::Vector3d initialTargetPosition;
       
+      
+      gtRobPose_.resize(NUM_ROBOTS);
       teammateRobots_.reserve(NUM_ROBOTS);
       targets_.reserve(NUM_TARGETS);
-      currentPoseVertexID.reserve(NUM_ROBOTS);
-      robotStarted.reserve(NUM_ROBOTS);      
+      currentPoseVertexID.resize(NUM_ROBOTS);
+      robotStarted.resize(NUM_ROBOTS);      
       
       for(int j=0;j<NUM_TARGETS;j++)
       {
@@ -375,11 +400,11 @@ class GenerateGraph
 	
 	if(i+1 == MY_ID)
 	{
-	  robot_ = new SelfRobot(nh_, graph_,i,0,&totalVertextCounter_,&targetVertexID_,initialRobotPose,targets_,&currentPoseVertexID,&robotStarted);
+	  robot_ = new SelfRobot(nh_, graph_,i,0,&totalVertextCounter_,&targetVertexID_,initialRobotPose,targets_,&currentPoseVertexID,&robotStarted,&gtRobPose_);
 	}
 	else
 	{	  
-	  TeammateRobot *tempRobot = new TeammateRobot(nh_, graph_,i,0,&totalVertextCounter_,&targetVertexID_,initialRobotPose, targets_,&currentPoseVertexID,&robotStarted);
+	  TeammateRobot *tempRobot = new TeammateRobot(nh_, graph_,i,0,&totalVertextCounter_,&targetVertexID_,initialRobotPose, targets_,&currentPoseVertexID,&robotStarted,&gtRobPose_);
 	  teammateRobots_.push_back(tempRobot);
 	}	
       }

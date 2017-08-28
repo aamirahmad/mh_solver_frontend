@@ -607,11 +607,11 @@ void SelfRobot::selfOdometryCallback(const nav_msgs::Odometry::ConstPtr& odometr
    {
       if(vertextCounter_ == MAX_VERTEX_COUNT-5)
       {
-	cout<<"avgComputationTime = "<<avgComputationTime<<endl;
-	cout<<"windowSolverInvokeCount = "<<windowSolverInvokeCount<<endl;	
+	//cout<<"avgComputationTime = "<<avgComputationTime<<endl;
+	//cout<<"windowSolverInvokeCount = "<<windowSolverInvokeCount<<endl;	
 	//compute average time of solver per iteration of the estimator
 	avgComputationTime = avgComputationTime/windowSolverInvokeCount;
-	printf("\n\nverage time taken by the solver per iteration of the estimator = %f\n\n\n",avgComputationTime);
+	//printf("\n\nverage time taken by the solver per iteration of the estimator = %f\n\n\n",avgComputationTime);
       }     
       //Now solve the resulting graph
       timespec ts1,ts2;
@@ -623,19 +623,18 @@ void SelfRobot::selfOdometryCallback(const nav_msgs::Odometry::ConstPtr& odometr
 
       clock_gettime(CLOCK_REALTIME, &ts2);
       float diff_millisec = fabs(((float)ts2.tv_nsec - (float)ts1.tv_nsec)/1000000);
-      cout<<"time taken =  "<< diff_millisec <<" milli seconds"<<'\n';
+      //cout<<"time taken =  "<< diff_millisec <<" milli seconds"<<'\n';
       
       computationTime[vertextCounter_] = diff_millisec;
       
-      if(diff_millisec<30) //removing outliers
-      {
-	avgComputationTime += diff_millisec;
-        windowSolverInvokeCount++;
-      }
+ 
+      avgComputationTime += diff_millisec;
+      windowSolverInvokeCount++;
+
       
       
-      cout<<"avgComputationTime = "<<avgComputationTime<<endl;
-      cout<<"windowSolverInvokeCount = "<<windowSolverInvokeCount<<endl;
+      //cout<<"avgComputationTime = "<<avgComputationTime<<endl;
+      //cout<<"windowSolverInvokeCount = "<<windowSolverInvokeCount<<endl;
       
       //cout<<"I am here"<<endl;
       Eigen::Isometry2d priorPose;
@@ -865,9 +864,15 @@ void SelfRobot::selfLandmarkDataCallback(const read_omni_dataset::LRMLandmarksDa
 void SelfRobot::selfGTDataCallback(const geometry_msgs::PoseStamped::ConstPtr& gtMsgReceived,int RobotNumber, g2o::SparseOptimizer* graph_ptr)
 {
   // This can be used for comparison w.r.t. ground truth data.  
-  gtRobPose = *gtMsgReceived;
+  (*gtRobPose)[RobotNumber-1] = *gtMsgReceived;
 }
-    
+   
+void SelfRobot::targetGTDataCallback(const geometry_msgs::PointStamped::ConstPtr& gtMsgReceived,int RobotNumber, g2o::SparseOptimizer* graph_ptr)
+{
+  // This can be used for comparison w.r.t. ground truth data.  
+  gtTargetPose = *gtMsgReceived;
+}    
+   
 
 void SelfRobot::solveSlidingWindowGraph(g2o::SparseOptimizer* graph_ptr)
 {
@@ -941,7 +946,7 @@ void SelfRobot::solveSlidingWindowGraph(g2o::SparseOptimizer* graph_ptr)
 	targetsToTrack[0]->curPose(0) = ((VertexXY_VXVY*)mostRecetTargetVertex)->estimate().x();
 	targetsToTrack[0]->curPose(1) = ((VertexXY_VXVY*)mostRecetTargetVertex)->estimate().y();
 	targetsToTrack[0]->curPose(2) = ((VertexXY_VXVY*)mostRecetTargetVertex)->ballZCoordinate;
-	cout<<"Ball is at "<<targetsToTrack[0]->curPose(0)<<" and "<< targetsToTrack[0]->curPose(1)<<endl;
+	//cout<<"Ball is at "<<targetsToTrack[0]->curPose(0)<<" and "<< targetsToTrack[0]->curPose(1)<<endl;
 	
       }
       else
@@ -1007,20 +1012,50 @@ void SelfRobot::publishSelfState(g2o::SparseOptimizer* graph_ptr)
       
 	if(poseExists)
 	{
-	  VertexSE2* mostRecetPoseVertex = dynamic_cast<VertexSE2*>(graph_ptr->vertices()[latestOptimizedRobPoseVer]);
-	  mostRecetPoseVertex->isOptimizedAtLeastOnce = true;
+            VertexSE2* mostRecetPoseVertex = dynamic_cast<VertexSE2*>(graph_ptr->vertices()[latestOptimizedRobPoseVer]);
+            mostRecetPoseVertex->isOptimizedAtLeastOnce = true;
 
-          //fill in the generic message for estimated robot pose
-          estimatedRobPose.pose.pose.position.x = mostRecetPoseVertex->estimate().translation().x();
-	  estimatedRobPose.pose.pose.position.y = mostRecetPoseVertex->estimate().translation().y();
-	  estimatedRobPose.pose.pose.position.z = 0.81; //fixed height aboveground
-	
-	  estimatedRobPose.pose.pose.orientation.x = 0;
-	  estimatedRobPose.pose.pose.orientation.y = 0;
-	  estimatedRobPose.pose.pose.orientation.z = sin(mostRecetPoseVertex->estimate().rotation().angle()/2);
-	  estimatedRobPose.pose.pose.orientation.w = cos(mostRecetPoseVertex->estimate().rotation().angle()/2); 
+            //fill in the generic message for estimated robot pose
+            estimatedRobPose.pose.pose.position.x = mostRecetPoseVertex->estimate().translation().x();
+            estimatedRobPose.pose.pose.position.y = mostRecetPoseVertex->estimate().translation().y();
+            estimatedRobPose.pose.pose.position.z = 0.81; //fixed height aboveground
+            
+            estimatedRobPose.pose.pose.orientation.x = 0;
+            estimatedRobPose.pose.pose.orientation.y = 0;
+            estimatedRobPose.pose.pose.orientation.z = sin(mostRecetPoseVertex->estimate().rotation().angle()/2);
+            estimatedRobPose.pose.pose.orientation.w = cos(mostRecetPoseVertex->estimate().rotation().angle()/2); 
+            
+            estimatedStatePublishers[i].publish(estimatedRobPose);
+            
+            ///@TODO This should move to its own method or perhaps its own separate node. Will make more sense there.
+            // Now calculate the errors in estimated poses w.r.t. ground truth and publish 
+
+            //Note that this possible only when experimenting in a simulated environment, obviously!
+            errorInPose_wrt_GT.header = estimatedRobPose.header;
+            errorInPose_wrt_GT.pose.position.x = (*gtRobPose)[i].pose.position.x - estimatedRobPose.pose.pose.position.x;
+            
+            errorInPose_wrt_GT.pose.position.y = (*gtRobPose)[i].pose.position.y - estimatedRobPose.pose.pose.position.y;
+            
+            errorInPose_wrt_GT.pose.position. z = 0; // Robot only has a 2D position
+            
+            // Note that q2 is set as inverse of the estimated pose. This eases the multiplication later.
+            Eigen:Quaterniond q1((*gtRobPose)[i].pose.orientation.w,(*gtRobPose)[i].pose.orientation.x,(*gtRobPose)[i].pose.orientation.y,(*gtRobPose)[i].pose.orientation.z), q2(estimatedRobPose.pose.pose.orientation.w,-estimatedRobPose.pose.pose.orientation.x,-estimatedRobPose.pose.pose.orientation.y,-estimatedRobPose.pose.pose.orientation.z);
+            
+            
+            Eigen::Quaterniond erroQ;
+            erroQ.setIdentity();
+
+            erroQ.w() = q1.w() * q2.w() - q1.vec().dot(q2.vec());
+            erroQ.vec() = q1.w() * q2.vec() + q2.w() * q1.vec() + q1.vec().cross(q2.vec());
+            
+            errorInPose_wrt_GT.pose.orientation.w = erroQ.w();
+            errorInPose_wrt_GT.pose.orientation.x = erroQ.x();
+            errorInPose_wrt_GT.pose.orientation.y = erroQ.y();
+            errorInPose_wrt_GT.pose.orientation.z = erroQ.z();
+            errorInYaw = 2*acos(erroQ.w());
+            //ROS_INFO("Error in yaw angle of the estimated robot position = %f",errorInYaw);
+            estimationErrorPublisher[i].publish(errorInPose_wrt_GT);             
           
-          estimatedStatePublishers[i].publish(estimatedRobPose);
 	}
       }
     }
@@ -1041,6 +1076,21 @@ void SelfRobot::publishSelfState(g2o::SparseOptimizer* graph_ptr)
     //selfState_publisher_generic.publish(estimatedRobPose);
     targetStatePublisher.publish(estimateBallState);
     targetStatePublisher_generic.publish(estimatedTargetPose);
+    
+    ///@TODO This should move to its own method or perhaps its own separate node. Will make more sense there.
+    // Now calculate the errors in estimated target position w.r.t. ground truth and publish 
+    
+    errorInTargetPose_wrt_GT.header = estimateBallState.header;
+    errorInTargetPose_wrt_GT.pose.position.x = gtTargetPose.point.x - estimateBallState.x;
+    errorInTargetPose_wrt_GT.pose.position.y = gtTargetPose.point.y - estimateBallState.y;
+    errorInTargetPose_wrt_GT.pose.position.z = 0; // graph approach is not using the z coordinate for now
+    // There is no orientation for the target!
+    errorInTargetPose_wrt_GT.pose.orientation.w = 1;
+    errorInTargetPose_wrt_GT.pose.orientation.x = 0;
+    errorInTargetPose_wrt_GT.pose.orientation.y = 0;
+    errorInTargetPose_wrt_GT.pose.orientation.z = 0;    
+    
+    estimationErrorInTargetPublisher.publish(errorInTargetPose_wrt_GT);
     
 }
 
@@ -1397,7 +1447,13 @@ void TeammateRobot::teammateLandmarkDataCallback(const read_omni_dataset::LRMLan
  }
 
 
-
+void TeammateRobot::teammateGTDataCallback(const geometry_msgs::PoseStamped::ConstPtr& gtMsgReceived,int RobotNumber, g2o::SparseOptimizer* graph_ptr)
+{
+  // This can be used for comparison w.r.t. ground truth data.  
+  (*gtRobPose)[RobotNumber-1] = *gtMsgReceived;
+}
+ 
+ 
 void TeammateRobot::publishState(g2o::SparseOptimizer* graph_ptr)
 {
     //using the first robot for the globaltime stamp of this message

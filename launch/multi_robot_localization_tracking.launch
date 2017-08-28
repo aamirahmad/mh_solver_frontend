@@ -4,11 +4,11 @@
  
   <arg name="robotID" default="1"/>
   <arg name="numRobots" default="3" />
-  <arg name="WindowSize" default="10" />
-  <arg name="DecayLambda" default="10" />
+  <arg name="WindowSize" default="20" />
+  <arg name="DecayLambda" default="20" />
   
      
-  <node name="coop_loc_track_$(arg robotID)" pkg="mh_solver_frontend" type="coop_loc_track" args="$(arg WindowSize) $(arg DecayLambda)" output="screen">
+  <node name="coop_loc_track_$(arg robotID)" pkg="mh_solver_frontend" type="coop_loc_track" args="$(arg WindowSize) $(arg DecayLambda)" output="screen" respawn="true" >
     
     <param name="MY_ID" value="$(arg robotID)" type="int" />   
     

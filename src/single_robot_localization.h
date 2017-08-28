@@ -97,7 +97,7 @@ int MAX_INDIVIDUAL_STATES = 20000;
 
 //these should be equal to MAX_VERTEX_COUNT in case of full graph optimization
 int WINDOW_SIZE=0; //these two are not const anymore because they are set by the main is not 
-int DECAY_LAMBDA = WINDOW_SIZE;
+int DECAY_LAMBDA = 0;
 float avgComputationTime;
 
 
@@ -109,8 +109,11 @@ using namespace std;
 class SelfRobot
 {
     
+  bool graphInitialized;
+  
   geometry_msgs::PoseWithCovarianceStamped estimatedRobPose;  
   geometry_msgs::PoseStamped gtRobPose;  
+  geometry_msgs::PoseStamped errorInPose_wrt_GT;
   
   
   //One subscriber per sensor in the robot
@@ -136,7 +139,7 @@ class SelfRobot
   int *totalVertextCounter;
   int solverStep;
   mh_solver_frontend::RobotState msg;
-  Publisher selfState_publisher_generic, virtualGTPublisher; // virtualGTPublisher because gt publisher is actually the rosbag but we need to subscribe to it and publish it synchronously with the estimated rbot state output.
+  Publisher selfState_publisher_generic, estimationErrorPublisher; // virtualGTPublisher because gt publisher is actually the rosbag but we need to subscribe to it and publish it synchronously with the estimated rbot state output.
   
   //New Variables for scaled arrival cost function in MHE (refer Rao 2013 for theoretical details)
   //double U_prior;
@@ -151,6 +154,7 @@ class SelfRobot
   public:
     SelfRobot(NodeHandle& nh, g2o::SparseOptimizer* graph, int robotNumber, int startCounter, int* totVertCount, Eigen::Isometry2d _initPose,vector<int>* _curPosVerID, vector<bool> * _ifRobotIsStarted): vertextCounter_(startCounter), totalVertextCounter(totVertCount), SE2vertexID_prev(0), SE2vertexID(0), initPose(_initPose), solverStep(0),currentPoseVertexIDs(_curPosVerID),ifRobotIsStarted(_ifRobotIsStarted)
     {
+      graphInitialized = false;  
         
       (*ifRobotIsStarted)[robotNumber] = false;
       
@@ -166,6 +170,7 @@ class SelfRobot
       
       selfState_publisher_generic = nh.advertise<geometry_msgs::PoseWithCovarianceStamped>("estimatedRobotPose_omni"+boost::lexical_cast<string>(robotNumber+1), 1000); //mhls is
     
+      estimationErrorPublisher = nh.advertise<geometry_msgs::PoseStamped>("errorInEstimatedRobotPose_omni"+boost::lexical_cast<string>(robotNumber+1), 1000); //mhls is
    
       
       mhls_g2o = fopen("mhls_g2o.g2o","w");
@@ -240,8 +245,8 @@ class GenerateGraph
       Eigen::Isometry2d initialRobotPose;
       
 
-      currentPoseVertexID.reserve(NUM_ROBOTS);
-      robotStarted.reserve(NUM_ROBOTS);      
+      currentPoseVertexID.resize(NUM_ROBOTS);
+      robotStarted.resize(NUM_ROBOTS);      
       
       // In single robot case NUM_ROBOTS is 1, more than that will cause an issue
       for(int i=0;i<NUM_ROBOTS;i++)
