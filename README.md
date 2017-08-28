@@ -16,4 +16,4 @@ Pre-requisites for this package:
    3. Read the instructions carefully and gnerate/play/observe data from multiple robots. This is going to be used by mh_solver_frontend.
 4. There are 2 launch files in this (mh_solver_frontend) package. They correspond to problem 1 and 2 of the tutorial. Problem 3 requires the student to write his/her own launch file also.
 
-5. Execute the launch files with the robotID and numRobots parameters of your choice after completing the missing methods in g2o obtained in step 1 above.
+5. Execute the launch files with the robotID and numRobots parameters of your choice after completing the missing methods in the g2o library (in the version obtained in step 1).
