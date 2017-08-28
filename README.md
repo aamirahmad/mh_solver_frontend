@@ -6,7 +6,7 @@ The Lucia branch is created specifically for the Lucia summer school 2017 lectur
 
 Pre-requisites for this package:
 
-1. Install a copy of g2o from this location: git@github.molgen.mpg.de:aamir/g2o_lucia_tutorial.git
+1. Install a copy of g2o from this location: https://github.molgen.mpg.de/aamir/g2o_lucia_tutorial.git
    Install location can be /usr/local (default). Otherwise, please set the location manually in the CMakeLists.txt of this (mh_solver_frontend) package.
 2. Get the following package: read_omni_dataset
    1. Clone https://github.com/aamirahmad/read_omni_dataset.git
