@@ -1,0 +1,39 @@
+Given:
+
+G1. Landmark map of an environment.
+
+G2. A team of N robots moving arbitrarily in the environment.
+
+G3. A randomly moving target (hovering, pulling, bouncing off the ground) simulated using gravity.
+
+
+Published messages from the robots:
+
+M1. Odometry measurements of each robot.
+
+M2. 2D Position measurements of landmarks in the observing robot's frame.
+
+M3. 2D Position measurements of the target in the observing robot's frame.
+
+M4. Inter-robot measurements in the observing robot's frame.
+
+
+Problem 1: [Easy]
+
+Using M1 and M2, perform single robot localization (in global frame) using a moving horizon nonlinear optimization-based method.
+
+Problem 2: [Intermediate]
+
+Using M1 M2 and M3 perform unified localization and target tracking in global frame using a moving horizon non linear optimization-based method. Meaning, Robot1 should be able to track every other robot and the target. We assume that the communication between the robots is realtime and without any restrictions.
+
+Problem 3: [Exhaustive]
+
+Using M1, M3 and M4, perform unified relative localization and tracking in local frame. Communication restrictions based on distance to other robots can be assumed.
+
+Instructions:
+
+0. For all problems, run the simulated robot generator package (randgen_omni_dataset) which creates the environment, robots, and the messages.
+
+1. For problem 1 and 2, we provide the front end in dedicated ros-based packages which simply needs to be executed. The task will be to code the respective measurement error functions and Jacobians inside the g2o library.
+
+2. For problem 3, write a ros-based front-end (a new ros package) similar to that provided for other two problems. The measurement error functions and Jacobians from problem 1 and 2 could be used. [Homework!]
