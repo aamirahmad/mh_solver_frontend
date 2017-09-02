@@ -16,7 +16,7 @@ Pre-requisites for this package:
    2. Read the instructions carefully and gnerate/play/observe data from multiple robots. This is going to be used by mh_solver_frontend.
    3. To visualize the data and robots, load the rviz config file (that has either 1 robot or 10 robots in the name).
    4. To be able to visualize the output of mh_solver_frontend on the same rviz interface, you will need the following ros package also installed in your ros workspace: https://github.com/laas/rviz_plugin_covariance
-   5. Note that if rviz complains inspite of having rviz_plugin_covariance compiled, try to manually remove the estimates from 
+   5. Note that if rviz complains inspite of having rviz_plugin_covariance compiled, try to manually remove the estimates from the rviz interface that display error in loading. Then add the topics you want to display again. 
 4. There are 2 launch files in this (mh_solver_frontend) package. They correspond to problem 1 and 2 of the tutorial. Problem 3 requires the student to write his/her own launch file also.
 
 5. Execute the launch files with the robotID and numRobots parameters of your choice after completing the missing methods in the g2o library (in the version obtained in step 1).
